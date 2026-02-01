@@ -1,0 +1,31 @@
+name: CreditCardPlugin
+version: '1.0.0'
+main: gh.creditcard.CreditCardPlugin
+api-version: '1.21'
+author: red_torch
+description: Credit card system
+commands:
+  карта:
+    description: Manage your credit card
+    usage: /карта <создать|баланс|положить|снять|reload|подделать>
+permissions:
+  creditcard.use:
+    description: Allows using credit card commands
+    default: true
+  creditcard.admin:
+    description: Allows admin credit card commands
+    default: op
+  creditcard.reload:
+    description: Allows reloading the plugin config
+    default: op
+  creditcard.copy:
+    description: Allows forging of cards
+    default: op
+  creditcard.fabricate:
+    description: Allows creating cards with custom ID
+    default: op
+  creditcard.masscreate:
+    description: Allows creating more than 1 card
+  creditcard.destroy:
+    description: Allows destroying cards
+    default: op

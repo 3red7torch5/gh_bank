@@ -1,0 +1,70 @@
+currency:
+  item: DIAMOND
+  # %currency_item% - отображение выбранной валюты.
+
+  card:
+    material: LEATHER_HORSE_ARMOR
+    name: "&6Банковская карта"
+    lore:
+      - ""
+      - "&7Владелец карты:"
+      - "&b%owner_name%"
+      - ""
+      - "&7Номер карты:"
+      - "&b%card_id%"
+      - ""
+      - "&7Баланс карты:"
+      - "&9%balance% АЛМ"
+cooldown:
+  hours: 72 #часов
+  message: "&cПодождите ещё %hours%ч %minutes%м перед созданием&7."
+  bypass-permission: "creditcard.cooldown.bypass"
+
+messages:
+  prefix: "&8[&6&lГХ&8] "
+
+  card-created: "&7Карта успешно создана! &fID: &a%card_id%&7."
+  deposit-success: "&7Внесено &b%amount% АЛМ&7. Баланс: &a%balance% АЛМ&7."
+  withdraw-success: "&7Списано &b%amount% АЛМ&7. Баланс: &a%balance% АЛМ&7."
+  balance-show: "&7Баланс: &b%balance% АЛМ."
+  transfer-success: "&7Переведено %amount% деняк на карту %target_card% (%target_owner%). Баланс: %balance%"
+
+  no-card-in-hand: "&cВозьмите карту в руку"
+  invalid-card: "&cОшибка при обработке карты"
+  insufficient-funds: "&7Недостаточно средств! Баланс: &a%balance% АЛМ&7."
+  not-enough-items: "&7Требуется ещё &b%needed% АЛМ&7!"
+  invalid-amount: "&cНеверное значение."
+  no-permission: "&7Недостаточно прав."
+  usage-create: "&7Использование: &f/карта создать"
+  usage-balance: "&7Использование: &f/карта баланс"
+  usage-deposit: "&7Использование: &f/карта пополнить <количество>"
+  usage-withdraw: "&7Использование: &f/карта снять <количество>"
+  usage-forge: "&7Использование: &f/карта подделать <номер>"
+  cards-created-multiple: "&7Создано &a%card_count% &7карт."
+  usage-transfer: "&7Использование: &f/карта перевести <номер карты> <сумма>"
+
+  already-exists: "&7Карта с таким номером уже существует."
+  numbers-only: "&7Разрешено использовать только цифры."
+  must-be-eight: "&7Требуется минимум 8 цифр."
+
+  inventory-full: "&cНедостаточно места! &7Часть предметов выпала."
+
+  cooldown-active: "&7Подождите ещё %cooldown%."
+
+  target-card-not-found: "&7Карта %target_card% не найдена"
+  cannot-transfer-to-self: "&7Еблан ваще?"
+  transfer-received: "&7С карты %sender_name% тебе жоска перевели %amount% деняк на карту %target_card%"
+
+  help-header: "&6&lКоманды"
+  help-create: "&f/карта создать &7- Создать новую карту\n&e/карта создать <количество> &7- Создать несколько карт"
+  help-balance: "&f/карта баланс &7- Проверить баланс с картой в руках"
+  help-deposit: "&f/карта пополнить <количество> &7- Положить с картой в руках"
+  help-withdraw: "&f/карта снять <количество> &7- Снять с картой в руках"
+  help-forge: "&f/карта подделать <номер> &7- Сделать копию существующей карты"
+  help-fabricate: "&f/карта сфабриковать <номер> &7- Создать карту с кастомным ID"
+  help-transfer: "&f/карта перевести XXXX-XXXX <сумма> &7- Перевести деньги на другую карту"
+
+database:
+  file: "cards.yml"
+  auto-save: 300 #секунды
+  cooldowns-file: "cooldowns.yml"
