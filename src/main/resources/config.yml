@@ -28,6 +28,9 @@ messages:
   withdraw-success: "&7Списано &b%amount% АЛМ&7. Баланс: &a%balance% АЛМ&7."
   balance-show: "&7Баланс: &b%balance% АЛМ."
   transfer-success: "&7Переведено %amount% деняк на карту %target_card% (%target_owner%). Баланс: %balance%"
+  skins-show: "Твои скины лол: %skins%"
+  invalid-skinid: "Неверный айди скина"
+  does-not-belong: "У тебя нет такого"
 
   no-card-in-hand: "&cВозьмите карту в руку"
   invalid-card: "&cОшибка при обработке карты"
@@ -42,6 +45,7 @@ messages:
   usage-forge: "&7Использование: &f/карта подделать <номер>"
   cards-created-multiple: "&7Создано &a%card_count% &7карт."
   usage-transfer: "&7Использование: &f/карта перевести <номер карты> <сумма>"
+  usage-skins: "Аэ блять /карта скин <айдиопционально>"
 
   already-exists: "&7Карта с таким номером уже существует."
   numbers-only: "&7Разрешено использовать только цифры."

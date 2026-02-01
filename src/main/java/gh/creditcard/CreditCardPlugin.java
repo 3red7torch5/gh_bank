@@ -43,6 +43,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
     private int cardsPerTick;
     private BukkitRunnable autoSaveTask;
     private BukkitScheduler scheduler;
+    private FileConfiguration skinsConfig;
+    private File skinsFile;
     private static class CardData {
         String ownerUuid;
         String ownerName;
@@ -103,6 +105,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         loadCurrencySettings();
         loadCardsDatabase();
         loadCooldownsDatabase();
+        loadSkinsDatabase();
         setupAutoSave();
         getCommand("карта").setExecutor(this);
         getCommand("карта").setTabCompleter(this);
@@ -145,6 +148,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         saveCardsDatabase();
         saveCooldownsDatabase();
+        saveSkinsDatabase();
         getLogger().info("Credit Card Plugin Disabled!");
     }
     private void loadCooldownsDatabase() {
@@ -259,6 +263,24 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             getLogger().log(Level.SEVERE, "Failed to save card creation cooldowns database!", e);
         }
     }
+    private void loadSkinsDatabase() {
+        skinsFile = new File(getDataFolder(), "skins.yml");
+        if (!skinsFile.exists()) {
+            skinsConfig = new YamlConfiguration();
+            skinsConfig.set("skins", new HashMap<String, Object>());
+            saveSkinsDatabase();
+        } else {
+            skinsConfig = YamlConfiguration.loadConfiguration(skinsFile);
+        }
+        getLogger().info("Loaded skins database");
+    }
+    private void saveSkinsDatabase() {
+        try {
+            skinsConfig.save(skinsFile);
+        } catch (IOException e) {
+            getLogger().log(Level.SEVERE, "Failed to save skins database!", e);
+        }
+    }
     private void setupAutoSave() {
         int autoSaveInterval = config.getInt("database.auto-save", 300);
         if (autoSaveInterval > 0) {
@@ -267,6 +289,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 public void run() {
                     saveCardsDatabase();
                     getLogger().info("Saved cards database");
+                    saveSkinsDatabase();
+                    getLogger().info("Saved skins database");
                 }
             };
             autoSaveTask.runTaskTimer(this, autoSaveInterval * 20L, autoSaveInterval * 20L);
@@ -342,6 +366,48 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         long minutes = (remaining % (1000 * 60 * 60)) / (1000 * 60);
         long seconds = (remaining % (1000 * 60)) / 1000;
         return hours + "ч " + minutes + "м " + seconds + "с";
+    }
+    public List<String> getAvailableSkins(Player player) {
+        String path = "skins." + player.getUniqueId().toString();
+        if (skinsConfig.contains(path + ".skins")) {
+            return skinsConfig.getStringList(path + ".skins");
+        }
+        return new ArrayList<>();
+    }
+    public boolean addSkinToPlayer(Player player, String playerName, String skinID) {
+        String playerPath = "skins." + player.getUniqueId().toString();
+        if (!skinsConfig.contains(playerPath)) {
+            skinsConfig.set(playerPath + ".name", playerName);
+            skinsConfig.set(playerPath + ".skins", new ArrayList<String>());
+        }
+        List<String> currentSkins = skinsConfig.getStringList(playerPath + ".skins");
+        if (currentSkins.contains(skinID)) {
+            return false;
+        }
+        currentSkins.add(skinID);
+        skinsConfig.set(playerPath + ".skins", currentSkins);
+        if (!skinsConfig.getString(playerPath + ".name", "").equals(playerName)) { // Вдруг имя поменяется йоу
+            skinsConfig.set(playerPath + ".name", playerName);
+        }
+        saveSkinsDatabase();
+        return true;
+    }
+    public boolean removeSkinFromPlayer(Player player, String skinID) {
+        String playerPath = "skins." + player.getUniqueId().toString();
+        if (!skinsConfig.contains(playerPath)) {
+            return false;
+        }
+        List<String> currentSkins = skinsConfig.getStringList(playerPath + ".skins");
+        if (!currentSkins.contains(skinID)) {
+            return false;
+        }
+        currentSkins.remove(skinID);
+        skinsConfig.set(playerPath + ".skins", currentSkins);
+        if (currentSkins.isEmpty()) {
+            skinsConfig.set(playerPath, null);
+        }
+        saveSkinsDatabase();
+        return true;
     }
     private void setCooldown(Player player) {
         long cooldownEnd = System.currentTimeMillis() + (cooldownHours * 60 * 60 * 1000L);
@@ -471,6 +537,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 return commandFabricate(player, args);
             case "перевести":
                 return commandTransfer(player, args);
+            case "скин":
+                return commandSkins(player, args);
             default:
                 showHelp(player);
                 return true;
@@ -862,6 +930,45 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         getLogger().info("Configuration reloaded by " + player.getName());
         return true;
     }
+    private boolean commandSkins(Player player, String[] args) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        String cardId = getIdFromItem(hand);
+        if (cardId == null) {
+            player.sendMessage(getMessage("no-card-in-hand"));
+            return true;
+        }
+        CardData card = cards.get(cardId);
+        if (card == null) {
+            player.sendMessage(getMessage("invalid-card"));
+            return true;
+        }
+        if (args.length > 2) {
+            player.sendMessage(getMessage("usage-skins"));
+            return true;
+        }
+        if (args.length == 2) {
+            ItemMeta meta = hand.getItemMeta();
+            int id;
+            try {
+                id = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                player.sendMessage(getMessage("invalid-skinid"));
+                return true;
+            }
+            if (getAvailableSkins(player).contains(id)) {
+                meta.setCustomModelData(id);
+            } else {
+                player.sendMessage(getMessage("does-not-belong"));
+                return true;
+            }
+            hand.setItemMeta(meta);
+        } else {
+            Map<String, String> placeholders = new HashMap<>();
+            placeholders.put("skins", String.valueOf(getAvailableSkins(player)));
+            player.sendMessage(getMessage("skins-show", placeholders));
+        }
+        return true;
+    }
     private void updateCardItem(ItemStack cardItem, String cardId) {
         if (cardItem == null || !cardItem.hasItemMeta()) return;
         CardData card = cards.get(cardId);
@@ -920,7 +1027,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         List<String> completions = new ArrayList<>();
         try {
             if (args.length == 1) {
-                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести"));
+                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести","скин"));
                 if (sender.hasPermission("creditcard.reload")) {
                     subCommands.add("reload");
                 }
