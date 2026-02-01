@@ -953,6 +953,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                                     completions.add(String.valueOf(countPlayerCurrency(player)));
                                 } else if (subCommand.equals("снять")) {
                                     completions.add(String.valueOf(card.getBalance()));
+                                    completions.add(String.valueOf(countPlayerAir(player)*64));
                                 }
                             }
                         }
