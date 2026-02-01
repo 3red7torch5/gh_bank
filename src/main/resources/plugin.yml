@@ -7,7 +7,7 @@ description: Credit card system
 commands:
   карта:
     description: Manage your credit card
-    usage: /карта <создать|баланс|положить|снять|reload|подделать>
+    usage: /карта <создать|баланс|положить|снять|reload|подделать|сфабриковать|перевести|скин>
 permissions:
   creditcard.use:
     description: Allows using credit card commands

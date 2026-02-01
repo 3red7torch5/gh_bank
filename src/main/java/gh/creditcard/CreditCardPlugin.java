@@ -374,10 +374,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         return new ArrayList<>();
     }
-    public boolean addSkinToPlayer(Player player, String playerName, String skinID) {
+    public boolean addSkin(Player player, String skinID) {
         String playerPath = "skins." + player.getUniqueId().toString();
         if (!skinsConfig.contains(playerPath)) {
-            skinsConfig.set(playerPath + ".name", playerName);
+            skinsConfig.set(playerPath + ".name", player.getName());
             skinsConfig.set(playerPath + ".skins", new ArrayList<String>());
         }
         List<String> currentSkins = skinsConfig.getStringList(playerPath + ".skins");
@@ -386,13 +386,13 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         currentSkins.add(skinID);
         skinsConfig.set(playerPath + ".skins", currentSkins);
-        if (!skinsConfig.getString(playerPath + ".name", "").equals(playerName)) { // Вдруг имя поменяется йоу
-            skinsConfig.set(playerPath + ".name", playerName);
+        if (!skinsConfig.getString(playerPath + ".name", "").equals(player.getName())) { // Вдруг имя поменяется йоу
+            skinsConfig.set(playerPath + ".name", player.getName());
         }
         saveSkinsDatabase();
         return true;
     }
-    public boolean removeSkinFromPlayer(Player player, String skinID) {
+    public boolean removeSkin(Player player, String skinID) {
         String playerPath = "skins." + player.getUniqueId().toString();
         if (!skinsConfig.contains(playerPath)) {
             return false;
@@ -942,26 +942,33 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("invalid-card"));
             return true;
         }
-        if (args.length > 2) {
+        if (args.length > 3) {
             player.sendMessage(getMessage("usage-skins"));
             return true;
         }
-        if (args.length == 2) {
-            ItemMeta meta = hand.getItemMeta();
+        if (args.length == 3) {
             int id;
             try {
-                id = Integer.parseInt(args[1]);
+                id = Integer.parseInt(args[2]);
             } catch (NumberFormatException e) {
                 player.sendMessage(getMessage("invalid-skinid"));
                 return true;
             }
-            if (getAvailableSkins(player).contains(id)) {
-                meta.setCustomModelData(id);
-            } else {
-                player.sendMessage(getMessage("does-not-belong"));
-                return true;
+            if (args[1].equals("добавить")) {
+                addSkin(player,String.valueOf(id));
             }
-            hand.setItemMeta(meta);
+            if (args[1].equals("забрать")) {
+                removeSkin(player,String.valueOf(id));
+            }
+            if (args[1].equals("поставить")) {
+                if (getAvailableSkins(player).contains(String.valueOf(id))) {
+                    ItemMeta meta = hand.getItemMeta();
+                    meta.setCustomModelData(id);
+                } else {
+                    player.sendMessage(getMessage("does-not-belong"));
+                    return true;
+                }
+            }
         } else {
             Map<String, String> placeholders = new HashMap<>();
             placeholders.put("skins", String.valueOf(getAvailableSkins(player)));
@@ -1027,7 +1034,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         List<String> completions = new ArrayList<>();
         try {
             if (args.length == 1) {
-                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести","скин"));
+                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести", "скин"));
                 if (sender.hasPermission("creditcard.reload")) {
                     subCommands.add("reload");
                 }
@@ -1069,6 +1076,14 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             }
                         }
                     }
+                } else if (subCommand.equals("скин")) {
+                    List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать"));
+                    String input = args[1].toLowerCase();
+                    for (String completion : skinfunctions) {
+                        if (completion.toLowerCase().startsWith(input)) {
+                            completions.add(completion);
+                        }
+                    }
                 }
             } else if (args.length == 3) {
                 String subCommand = args[0].toLowerCase();
@@ -1087,6 +1102,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             }
                         }
                     }
+                } else if (subCommand.equals("скин")) {
+                    completions.add("0");
                 }
             }
         } catch (Exception e) {
