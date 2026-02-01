@@ -117,13 +117,12 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     !event.getAction().name().contains("RIGHT_CLICK") ||
                     item == null || item.getType() == org.bukkit.Material.AIR ||
                     cardId == null ||
-                    !cards.containsKey(cardId) ||
-                    !event.getPlayer().isSneaking()
+                    !cards.containsKey(cardId)
                 ) {
                     return;
                 }
                 ItemStack offhandItem = event.getPlayer().getInventory().getItemInOffHand();
-                if (offhandItem != null && offhandItem.getType() == org.bukkit.Material.SHEARS) {
+                if (offhandItem != null && offhandItem.getType() == org.bukkit.Material.SHEARS && event.getPlayer().isSneaking()) {
                     destroyCardInHand(event.getPlayer());
                     event.getPlayer().getLocation().getWorld().playSound(event.getPlayer().getLocation(), Sound.ENTITY_WITHER_SHOOT, SoundCategory.UI, 1.0f, 2f);
                     event.getPlayer().sendMessage(colorize("&7Карта &b" + String.valueOf(cardId) + " &c&lаннулированна"));
