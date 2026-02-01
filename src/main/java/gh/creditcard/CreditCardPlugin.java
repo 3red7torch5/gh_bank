@@ -964,6 +964,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 if (getAvailableSkins(player).contains(String.valueOf(id))) {
                     ItemMeta meta = hand.getItemMeta();
                     meta.setCustomModelData(id);
+                    hand.setItemMeta(meta);
                 } else {
                     player.sendMessage(getMessage("does-not-belong"));
                     return true;
