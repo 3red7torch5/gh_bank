@@ -938,7 +938,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 }
             } else if (args.length == 2) {
                 String subCommand = args[0].toLowerCase();
-                if (subCommand.equals("перевести")) {
+                if (subCommand.equals("перевести") || subCommand.equals("подделать") || subCommand.equals("сфабриковать")) {
                     completions.add("XXXX-XXXX");
                 } else if (subCommand.equals("пополнить") || subCommand.equals("снять")) {
                     if (sender instanceof Player) {
@@ -955,7 +955,9 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                                     completions.add(String.valueOf(countPlayerCurrency(player)));
                                 } else if (subCommand.equals("снять")) {
                                     completions.add(String.valueOf(card.getBalance()));
-                                    completions.add(String.valueOf(countPlayerAir(player)*64));
+                                    if (card.getBalance() >= countPlayerAir(player)*64) {
+                                        completions.add(String.valueOf(countPlayerAir(player)*64));
+                                    }
                                 }
                             }
                         }
