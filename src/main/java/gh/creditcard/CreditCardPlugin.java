@@ -117,7 +117,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     !event.getAction().name().contains("RIGHT_CLICK") ||
                     item == null || item.getType() == org.bukkit.Material.AIR ||
                     cardId == null ||
-                    !cards.containsKey(cardId)
+                    !cards.containsKey(cardId) ||
+                    !event.getPlayer().isSneaking()
                 ) {
                     return;
                 }
