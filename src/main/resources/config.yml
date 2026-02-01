@@ -68,3 +68,5 @@ database:
   file: "cards.yml"
   auto-save: 300 #секунды
   cooldowns-file: "cooldowns.yml"
+
+destroy-balance-check: false

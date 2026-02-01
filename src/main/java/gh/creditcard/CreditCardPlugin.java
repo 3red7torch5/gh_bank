@@ -123,6 +123,9 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 }
                 ItemStack offhandItem = event.getPlayer().getInventory().getItemInOffHand();
                 if (offhandItem != null && offhandItem.getType() == org.bukkit.Material.SHEARS && event.getPlayer().isSneaking()) {
+                    if (config.getBoolean("destroy-balance-check") && cards.get(cardId).getBalance() != 0) {
+                        return;
+                    }
                     destroyCardInHand(event.getPlayer());
                     event.getPlayer().getLocation().getWorld().playSound(event.getPlayer().getLocation(), Sound.ENTITY_WITHER_SHOOT, SoundCategory.UI, 1.0f, 2f);
                     event.getPlayer().sendMessage(colorize("&7Карта &b" + String.valueOf(cardId) + " &c&lаннулированна"));
