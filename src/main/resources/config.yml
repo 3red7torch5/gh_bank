@@ -74,3 +74,8 @@ database:
   cooldowns-file: "cooldowns.yml"
 
 destroy-balance-check: false
+skin-names:
+  0: "&6Банковская карта"
+  1: "Первый скин"
+  2: "Второй скин"
+  3: "Третий скин"
