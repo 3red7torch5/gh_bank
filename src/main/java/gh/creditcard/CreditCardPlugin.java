@@ -1039,7 +1039,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         List<String> completions = new ArrayList<>();
         try {
             if (args.length == 1) {
-                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести", "скин"));
+                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести", "скины"));
                 if (sender.hasPermission("creditcard.reload")) {
                     subCommands.add("reload");
                 }
@@ -1081,7 +1081,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             }
                         }
                     }
-                } else if (subCommand.equals("скин")) {
+                } else if (subCommand.equals("скины")) {
                     List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать"));
                     String input = args[1].toLowerCase();
                     for (String completion : skinfunctions) {
@@ -1107,7 +1107,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             }
                         }
                     }
-                } else if (subCommand.equals("скин")) {
+                } else if (subCommand.equals("скины")) {
                     Player player = (Player) sender;
                     for (String completion : getAvailableSkins(player)) {
                         String input = args[2].toLowerCase();
