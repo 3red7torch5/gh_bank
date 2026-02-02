@@ -135,7 +135,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 } else {
                     updateCardItem(item, cardId);
                     event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_DECORATED_POT_SHATTER, 1.0f, 2f);
-                    event.getPlayer().sendActionBar(colorize("&7Баланс: &b" + String.valueOf(cards.get(cardId).getBalance()) + " АЛМ"));
+                    event.getPlayer().sendActionBar(colorize("&7Баланс: &b" + String.valueOf( // Пробелы для читаемости
+                            String.valueOf(cards.get(cardId).getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")) + " АЛМ"));
                 }
                 event.setCancelled(true);
             }
@@ -802,7 +803,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         updateCardItem(hand, cardId);
         player.playSound(player.getLocation(), Sound.UI_LOOM_SELECT_PATTERN, 1.0f, 2f);
         Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("balance", String.valueOf(card.getBalance()));
+        placeholders.put("balance", String.valueOf( // Пробелы для читаемости
+                String.valueOf(card.getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")));
         placeholders.put("currency_item", getCurrencyItemName());
         player.sendMessage(getMessage("balance-show", placeholders));
         return true;
@@ -986,7 +988,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         List<String> lore = new ArrayList<>();
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("card_id", cardId);
-        placeholders.put("balance", String.valueOf(card.getBalance()));
+        placeholders.put("balance", String.valueOf( // Пробелы для читаемости
+                String.valueOf(card.getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")));
         placeholders.put("currency_item", getCurrencyItemName());
         placeholders.put("owner_name", card.ownerName);
         for (String line : cardLoreTemplate) {
