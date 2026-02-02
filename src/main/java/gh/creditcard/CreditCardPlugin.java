@@ -134,6 +134,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     event.getPlayer().sendMessage(colorize("&7Карта &b" + String.valueOf(cardId) + " &c&lаннулированна"));
                 } else {
                     updateCardItem(item, cardId);
+                    String displayName = item.getItemMeta().getDisplayName();
+                    if (displayName.contains("олотая")) {
+                        event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, random.nextFloat() * 0.3f + 1.3f);
+                    }
                     event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_DECORATED_POT_SHATTER, 1.0f, 2f);
                     event.getPlayer().sendActionBar(colorize("&7Баланс: &b" + String.valueOf( // Пробелы для читаемости
                             String.valueOf(cards.get(cardId).getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")) + " АЛМ"));
