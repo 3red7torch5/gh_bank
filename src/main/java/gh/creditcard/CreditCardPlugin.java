@@ -1108,7 +1108,13 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         }
                     }
                 } else if (subCommand.equals("скин")) {
-                    completions.add("0");
+                    Player player = (Player) sender;
+                    for (String completion : getAvailableSkins(player)) {
+                        String input = args[2].toLowerCase();
+                        if (completion.toLowerCase().startsWith(input)) {
+                            completions.add(completion);
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
