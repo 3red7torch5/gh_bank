@@ -136,9 +136,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     updateCardItem(item, cardId);
                     String displayName = item.getItemMeta().getDisplayName();
                     if (displayName.contains("олотая")) {
-                        event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, random.nextFloat() * 0.3f + 1.3f);
+                        event.getPlayer().getWorld().playSound(event.getPlayer().getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, random.nextFloat() * 0.3f + 1.3f);
+                    } else {
+                        event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_DECORATED_POT_SHATTER, 1.0f, 2f);
                     }
-                    event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_DECORATED_POT_SHATTER, 1.0f, 2f);
                     event.getPlayer().sendActionBar(colorize("&7Баланс: &b" + String.valueOf( // Пробелы для читаемости
                             String.valueOf(cards.get(cardId).getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")) + " АЛМ"));
                 }
@@ -962,12 +963,14 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             }
             if (args[1].equals("добавить")) {
                 addSkin(player,String.valueOf(id));
+                player.sendMessage(colorize(getMessage("skin-add-succes")));
             }
             if (args[1].equals("забрать")) {
                 removeSkin(player,String.valueOf(id));
+                player.sendMessage(colorize(getMessage("skin-remove-succes")));
             }
             if (args[1].equals("поставить")) {
-                if (getAvailableSkins(player).contains(String.valueOf(id))) {
+                if (getAvailableSkins(player).contains(String.valueOf(id)) && config.getList("skin-names").contains(String.valueOf(id))) {
                     ItemMeta meta = hand.getItemMeta();
                     meta.setCustomModelData(id);
                     meta.setDisplayName(colorize(config.getString("skin-names." + String.valueOf(id))));
