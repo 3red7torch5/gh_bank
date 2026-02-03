@@ -543,7 +543,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 return commandFabricate(player, args);
             case "перевести":
                 return commandTransfer(player, args);
-            case "скины":
+            case "скин":
                 return commandSkins(player, args);
             default:
                 showHelp(player);
@@ -1046,7 +1046,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         List<String> completions = new ArrayList<>();
         try {
             if (args.length == 1) {
-                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести", "скины"));
+                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести", "скин"));
                 if (sender.hasPermission("creditcard.reload")) {
                     subCommands.add("reload");
                 }
@@ -1088,7 +1088,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             }
                         }
                     }
-                } else if (subCommand.equals("скины")) {
+                } else if (subCommand.equals("скин")) {
                     List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать"));
                     String input = args[1].toLowerCase();
                     for (String completion : skinfunctions) {
@@ -1114,12 +1114,22 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             }
                         }
                     }
-                } else if (subCommand.equals("скины")) {
-                    Player player = (Player) sender;
-                    for (String completion : getAvailableSkins(player)) {
-                        String input = args[2].toLowerCase();
-                        if (completion.toLowerCase().startsWith(input)) {
-                            completions.add(completion);
+                } else if (subCommand.equals("скин")) {
+                    if (args[2].equalsIgnoreCase("поставить")) {
+                        Player player = (Player) sender;
+                        for (String completion : getAvailableSkins(player)) {
+                            String input = args[2].toLowerCase();
+                            if (completion.toLowerCase().startsWith(input)) {
+                                completions.add(completion);
+                            }
+                        }
+                    } else if (args[2].equalsIgnoreCase("добавить")) {
+                        Player player = (Player) sender;
+                        for (String completion : config.getStringList("skin-names")) {
+                            String input = args[2].toLowerCase();
+                            if (completion.toLowerCase().startsWith(input)) {
+                                completions.add(completion);
+                            }
                         }
                     }
                 }
