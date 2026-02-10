@@ -980,7 +980,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("invalid-skinid"));
             return true;
         }
-        if (args[1].equalsIgnoreCase("добавить")) {
+        if (args[1].equalsIgnoreCase("добавить") && player.hasPermission("creditcard.skinmanagement")) {
             if (skinId == "-1") {
                 ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
                 List<String> currentSkins = getAvailableSkins(player);
@@ -1007,7 +1007,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             }
             return true;
         }
-        if (args[1].equalsIgnoreCase("забрать")) {
+        if (args[1].equalsIgnoreCase("забрать") && player.hasPermission("creditcard.skinmanagement")) {
             boolean removed = removeSkin(player, skinId);
             if (removed) {
                 player.sendMessage(colorize(getMessage("skin-remove-success")));
@@ -1123,6 +1123,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         });
         final int[] currentIndex = {0};
         final int totalSkins = allSkins.size();
+        ItemMeta savedmeta = hand.getItemMeta();
         for (int i = 0; i < totalSkins; i++) {
             final int skinNumber = i + 1;
             final String skinId = allSkins.get(i);
@@ -1163,7 +1164,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 }
             }, i);
         }
-
+        scheduler.runTaskLater(this, () -> {
+            hand.setItemMeta(savedmeta);
+            updateCardItem(hand, cardId);
+        },totalSkins+1);
         return true;
     }
     @Override
@@ -1214,8 +1218,12 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         }
                     }
                 } else if (subCommand.equals("скин")) {
-                    List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать"));
-                    skinfunctions.add("прогнать");
+                    List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить"));
+                    if (sender.hasPermission("creditcard.skinmanagement")){
+                        skinfunctions.add("добавить");
+                        skinfunctions.add("забрать");
+                        skinfunctions.add("прогнать");
+                    }
                     String input = args[1].toLowerCase();
                     for (String completion : skinfunctions) {
                         if (completion.toLowerCase().startsWith(input)) {
@@ -1243,6 +1251,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 } else if (subCommand.equals("скин")) {
                     if (args.length == 2) {
                         List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать", "список"));
+                        if (sender.hasPermission("creditcard.skinmanagement")) {
+                            skinfunctions.add("добавить");
+                            skinfunctions.add("забрать");
+                        }
                         String input = args[1].toLowerCase();
                         for (String completion : skinfunctions) {
                             if (completion.toLowerCase().startsWith(input)) {
@@ -1260,7 +1272,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                                     completions.add(skinId);
                                 }
                             }
-                        } else if (action.equals("добавить")) {
+                        } else if (action.equals("добавить") && sender.hasPermission("creditcard.skinmanagement")) {
                             List<String> playerSkins = getAvailableSkins(player);
                             ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
                             if (skinNamesSection != null) {
@@ -1273,7 +1285,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                                     }
                                 }
                             }
-                        } else if (action.equals("забрать")) {
+                        } else if (action.equals("забрать") && sender.hasPermission("creditcard.skinmanagement")) {
                             List<String> playerSkins = getAvailableSkins(player);
                             String input = args[2].toLowerCase();
                             for (String skinId : playerSkins) {

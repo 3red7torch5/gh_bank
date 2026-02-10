@@ -29,3 +29,6 @@ permissions:
   creditcard.destroy:
     description: Allows destroying cards
     default: op
+  creditcard.skinmanagement:
+    description: Allows managing skins
+    default: op
