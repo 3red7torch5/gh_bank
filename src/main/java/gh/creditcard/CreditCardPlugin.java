@@ -134,12 +134,6 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     event.getPlayer().sendMessage(colorize("&7Карта &b" + String.valueOf(cardId) + " &c&lаннулированна"));
                 } else {
                     updateCardItem(item, cardId);
-                    String displayName = item.getItemMeta().getDisplayName();
-                    if (displayName.contains("олотая")) {
-                        event.getPlayer().getWorld().playSound(event.getPlayer().getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, random.nextFloat() * 0.3f + 1.3f);
-                    } else {
-                        event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_DECORATED_POT_SHATTER, 1.0f, 2f);
-                    }
                     event.getPlayer().sendActionBar(colorize("&7Баланс: &b" + String.valueOf( // Пробелы для читаемости
                             String.valueOf(cards.get(cardId).getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")) + " АЛМ"));
                 }
@@ -381,6 +375,15 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         return new ArrayList<>();
     }
     public boolean addSkin(Player player, String skinID) {
+        try {
+            Integer.parseInt(skinID);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+        if (skinNamesSection == null || !skinNamesSection.contains(skinID)) {
+            return false;
+        }
         String playerPath = "skins." + player.getUniqueId().toString();
         if (!skinsConfig.contains(playerPath)) {
             skinsConfig.set(playerPath + ".name", player.getName());
@@ -392,7 +395,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         currentSkins.add(skinID);
         skinsConfig.set(playerPath + ".skins", currentSkins);
-        if (!skinsConfig.getString(playerPath + ".name", "").equals(player.getName())) { // Вдруг имя поменяется йоу
+        if (!skinsConfig.getString(playerPath + ".name", "").equals(player.getName())) {
             skinsConfig.set(playerPath + ".name", player.getName());
         }
         saveSkinsDatabase();
@@ -949,42 +952,100 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("invalid-card"));
             return true;
         }
-        if (args.length > 3) {
-            player.sendMessage(getMessage("usage-skins"));
+        if (args.length < 2) {
+            Map<String, String> placeholders = new HashMap<>();
+            List<String> playerSkins = getAvailableSkins(player);
+            placeholders.put("skins", String.join(", ", playerSkins));
+            player.sendMessage(getMessage("skins-show", placeholders));
             return true;
         }
-        if (args.length == 3) {
-            int id;
-            try {
-                id = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                player.sendMessage(getMessage("invalid-skinid"));
-                return true;
+        if (args.length == 2) {
+            String subAction = args[1].toLowerCase();
+            if (subAction.equals("список")) {
+                Map<String, String> placeholders = new HashMap<>();
+                List<String> playerSkins = getAvailableSkins(player);
+                placeholders.put("skins", String.join(", ", playerSkins));
+                player.sendMessage(getMessage("skins-show", placeholders));
+            } else {
+                player.sendMessage(getMessage("usage-skins"));
             }
-            if (args[1].equals("добавить")) {
-                addSkin(player,String.valueOf(id));
-                player.sendMessage(colorize(getMessage("skin-add-succes")));
-            }
-            if (args[1].equals("забрать")) {
-                removeSkin(player,String.valueOf(id));
-                player.sendMessage(colorize(getMessage("skin-remove-succes")));
-            }
-            if (args[1].equals("поставить")) {
-                if (getAvailableSkins(player).contains(String.valueOf(id)) && config.getList("skin-names").contains(String.valueOf(id))) {
-                    ItemMeta meta = hand.getItemMeta();
-                    meta.setCustomModelData(id);
-                    meta.setDisplayName(colorize(config.getString("skin-names." + String.valueOf(id))));
-                    hand.setItemMeta(meta);
-                } else {
-                    player.sendMessage(getMessage("does-not-belong"));
-                    return true;
+            return true;
+        }
+        String skinId = args[2];
+        try {
+            Integer.parseInt(skinId);
+        } catch (NumberFormatException e) {
+            player.sendMessage(getMessage("invalid-skinid"));
+            return true;
+        }
+        if (args[1].equalsIgnoreCase("добавить")) {
+            if (skinId == "-1") {
+                ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+                List<String> currentSkins = getAvailableSkins(player);
+                for (String configSkinId : skinNamesSection.getKeys(false)) {
+                    try {
+                        if (currentSkins.contains(configSkinId)) {
+                            continue;
+                        }
+                        addSkin(player, configSkinId);
+                    } catch (Exception e) {
+                        getLogger().warning("Ошибка при добавлении скина " + configSkinId + " для игрока " + player.getName());
+                    }
                 }
             }
-        } else {
-            Map<String, String> placeholders = new HashMap<>();
-            placeholders.put("skins", String.valueOf(getAvailableSkins(player)));
-            player.sendMessage(getMessage("skins-show", placeholders));
+            ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+            if (skinNamesSection == null || !skinNamesSection.contains(skinId)) {
+                return true;
+            }
+            boolean added = addSkin(player, skinId);
+            if (added) {
+                player.sendMessage(colorize(getMessage("skin-add-success")));
+            } else {
+                player.sendMessage(colorize(getMessage("skin-already-has")));
+            }
+            return true;
         }
+        if (args.length >= 3 && args[1].equalsIgnoreCase("прогнать")) {
+            return commandRunSkinPreview(player);
+        }
+        if (args[1].equalsIgnoreCase("забрать")) {
+            boolean removed = removeSkin(player, skinId);
+            if (removed) {
+                player.sendMessage(colorize(getMessage("skin-remove-success")));
+            } else {
+                player.sendMessage(colorize(getMessage("skin-not-have")));
+            }
+            return true;
+        }
+        if (args[1].equalsIgnoreCase("поставить")) {
+            List<String> availableSkins = getAvailableSkins(player);
+            if (!availableSkins.contains(skinId)) {
+                player.sendMessage(getMessage("does-not-belong"));
+                return true;
+            }
+            ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+            if (skinNamesSection == null || !skinNamesSection.contains(skinId)) {
+                player.sendMessage(colorize("&cЭтот ID скина не существует в конфигурации!"));
+                return true;
+            }
+            try {
+                int skinIdInt = Integer.parseInt(skinId);
+                ItemMeta meta = hand.getItemMeta();
+                meta.setCustomModelData(skinIdInt);
+                String skinName = config.getString("skin-names." + skinId);
+                if (skinName != null && !skinName.isEmpty()) {
+                    meta.setDisplayName(colorize(skinName));
+                } else {
+                    meta.setDisplayName(colorize("&6&lCredit Card &7(Skin #" + skinId + ")"));
+                }
+                hand.setItemMeta(meta);
+                player.sendMessage(colorize("&aСкин успешно применен!"));
+            } catch (NumberFormatException e) {
+                player.sendMessage(getMessage("invalid-skinid"));
+            }
+            return true;
+        }
+        player.sendMessage(getMessage("usage-skins"));
         return true;
     }
     private void updateCardItem(ItemStack cardItem, String cardId) {
@@ -1040,6 +1101,75 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
     }
     private String getCurrencyItemName() {
         return currencyItem.name().toLowerCase().replace("_", " ");
+    }
+    private boolean commandRunSkinPreview(Player player) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        String cardId = getIdFromItem(hand);
+        if (cardId == null) {
+            player.sendMessage(getMessage("no-card-in-hand"));
+            return true;
+        }
+        CardData card = cards.get(cardId);
+        if (card == null) {
+            player.sendMessage(getMessage("invalid-card"));
+            return true;
+        }
+        ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+        if (skinNamesSection == null || skinNamesSection.getKeys(false).isEmpty()) {
+            player.sendMessage(colorize("&cВ конфигурации не найдено скинов!"));
+            return true;
+        }
+        List<String> allSkins = new ArrayList<>(skinNamesSection.getKeys(false));
+        allSkins.sort((s1, s2) -> {
+            try {
+                return Integer.compare(Integer.parseInt(s1), Integer.parseInt(s2));
+            } catch (NumberFormatException e) {
+                return s1.compareTo(s2);
+            }
+        });
+        final int[] currentIndex = {0};
+        final int totalSkins = allSkins.size();
+        for (int i = 0; i < totalSkins; i++) {
+            final int skinNumber = i + 1;
+            final String skinId = allSkins.get(i);
+            scheduler.runTaskLater(this, () -> {
+                if (player == null || !player.isOnline()) {
+                    return;
+                }
+                ItemStack currentHand = player.getInventory().getItemInMainHand();
+                String currentCardId = getIdFromItem(currentHand);
+                if (currentCardId != null && currentCardId.equals(cardId)) {
+                    try {
+                        int skinIdInt = Integer.parseInt(skinId);
+                        ItemMeta meta = currentHand.getItemMeta();
+                        meta.setCustomModelData(skinIdInt);
+                        String skinName = config.getString("skin-names." + skinId);
+                        currentHand.setItemMeta(meta);
+                        int progressPercent = (skinNumber * 100 / totalSkins);
+                        String progressText = colorize("&7Скин: &f#" + skinId +
+                                " &7(" + skinNumber + "/" + totalSkins +
+                                " &7- &a" + progressPercent + "%&7)");
+                        player.sendActionBar(progressText);
+                        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f + (skinNumber * 0.02f));
+                    } catch (NumberFormatException e) {
+                        player.sendMessage(colorize("&cОшибка в формате ID скина: " + skinId));
+                    }
+                } else {
+                    player.sendMessage(colorize("&cПоказ прерван: карта была изменена!"));
+                    return;
+                }
+                currentIndex[0]++;
+                if (currentIndex[0] >= totalSkins) {
+                    ItemStack finalHand = player.getInventory().getItemInMainHand();
+                    String finalCardId = getIdFromItem(finalHand);
+                    if (finalCardId != null && finalCardId.equals(cardId)) {
+                        updateCardItem(finalHand, cardId);
+                    }
+                }
+            }, i);
+        }
+
+        return true;
     }
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
@@ -1115,20 +1245,45 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         }
                     }
                 } else if (subCommand.equals("скин")) {
-                    if (args[2].equalsIgnoreCase("поставить")) {
-                        Player player = (Player) sender;
-                        for (String completion : getAvailableSkins(player)) {
-                            String input = args[2].toLowerCase();
+                    if (args.length == 2) {
+                        List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать", "список"));
+                        String input = args[1].toLowerCase();
+                        for (String completion : skinfunctions) {
                             if (completion.toLowerCase().startsWith(input)) {
                                 completions.add(completion);
                             }
                         }
-                    } else if (args[2].equalsIgnoreCase("добавить")) {
+                    } else if (args.length == 3) {
+                        String action = args[1].toLowerCase();
                         Player player = (Player) sender;
-                        for (String completion : config.getStringList("skin-names")) {
+                        if (action.equals("поставить")) {
+                            List<String> availableSkins = getAvailableSkins(player);
                             String input = args[2].toLowerCase();
-                            if (completion.toLowerCase().startsWith(input)) {
-                                completions.add(completion);
+                            for (String skinId : availableSkins) {
+                                if (skinId.toLowerCase().startsWith(input)) {
+                                    completions.add(skinId);
+                                }
+                            }
+                        } else if (action.equals("добавить")) {
+                            List<String> playerSkins = getAvailableSkins(player);
+                            ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+                            if (skinNamesSection != null) {
+                                String input = args[2].toLowerCase();
+                                for (String skinId : skinNamesSection.getKeys(false)) {
+                                    if (!playerSkins.contains(skinId)) {
+                                        if (skinId.toLowerCase().startsWith(input)) {
+                                            completions.add(skinId);
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (action.equals("забрать")) {
+                            List<String> playerSkins = getAvailableSkins(player);
+                            String input = args[2].toLowerCase();
+                            for (String skinId : playerSkins) {
+                                if (skinId.toLowerCase().startsWith(input)) {
+                                    completions.add(skinId);
+                                }
                             }
                         }
                     }
