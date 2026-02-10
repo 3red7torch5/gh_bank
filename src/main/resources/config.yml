@@ -26,11 +26,13 @@ messages:
   card-created: "&7Карта успешно создана! &fID: &a%card_id%&7."
   deposit-success: "&7Внесено &b%amount% АЛМ&7. Баланс: &a%balance% АЛМ&7."
   withdraw-success: "&7Списано &b%amount% АЛМ&7. Баланс: &a%balance% АЛМ&7."
+  skin-add-success: "Добавлен скин аэыэаэы"
   balance-show: "&7Баланс: &b%balance% АЛМ."
   transfer-success: "&7Переведено %amount% деняк на карту %target_card% (%target_owner%). Баланс: %balance%"
   skins-show: "Твои скины лол: %skins%"
   invalid-skinid: "Неверный айди скина"
   does-not-belong: "У тебя нет такого"
+  skin-already-has: "Уже имеется такой скин"
 
   no-card-in-hand: "&cВозьмите карту в руку"
   invalid-card: "&cОшибка при обработке карты"

@@ -441,7 +441,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         ItemStack card = new ItemStack(cardMaterial);
         LeatherArmorMeta meta = (LeatherArmorMeta) card.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(cardName);
+            meta.setDisplayName(cardName.replace('&', '§'));
             meta.setColor(cardData.getCardColor());
             meta.addItemFlags(
                     ItemFlag.HIDE_ATTRIBUTES,
@@ -966,6 +966,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 List<String> playerSkins = getAvailableSkins(player);
                 placeholders.put("skins", String.join(", ", playerSkins));
                 player.sendMessage(getMessage("skins-show", placeholders));
+            } else if (subAction.equals("прогнать")) {
+                return commandRunSkinPreview(player);
             } else {
                 player.sendMessage(getMessage("usage-skins"));
             }
@@ -1005,9 +1007,6 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             }
             return true;
         }
-        if (args.length >= 3 && args[1].equalsIgnoreCase("прогнать")) {
-            return commandRunSkinPreview(player);
-        }
         if (args[1].equalsIgnoreCase("забрать")) {
             boolean removed = removeSkin(player, skinId);
             if (removed) {
@@ -1033,13 +1032,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 ItemMeta meta = hand.getItemMeta();
                 meta.setCustomModelData(skinIdInt);
                 String skinName = config.getString("skin-names." + skinId);
-                if (skinName != null && !skinName.isEmpty()) {
-                    meta.setDisplayName(colorize(skinName));
-                } else {
-                    meta.setDisplayName(colorize("&6&lCredit Card &7(Skin #" + skinId + ")"));
-                }
+                meta.setDisplayName(skinName.replace('&', '§'));
                 hand.setItemMeta(meta);
-                player.sendMessage(colorize("&aСкин успешно применен!"));
             } catch (NumberFormatException e) {
                 player.sendMessage(getMessage("invalid-skinid"));
             }
@@ -1142,8 +1136,9 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     try {
                         int skinIdInt = Integer.parseInt(skinId);
                         ItemMeta meta = currentHand.getItemMeta();
-                        meta.setCustomModelData(skinIdInt);
                         String skinName = config.getString("skin-names." + skinId);
+                        meta.setCustomModelData(skinIdInt);
+                        meta.setDisplayName(skinName.replace('&', '§'));
                         currentHand.setItemMeta(meta);
                         int progressPercent = (skinNumber * 100 / totalSkins);
                         String progressText = colorize("&7Скин: &f#" + skinId +
@@ -1220,6 +1215,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     }
                 } else if (subCommand.equals("скин")) {
                     List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать"));
+                    skinfunctions.add("прогнать");
                     String input = args[1].toLowerCase();
                     for (String completion : skinfunctions) {
                         if (completion.toLowerCase().startsWith(input)) {
