@@ -768,6 +768,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         }
                     }
                 }
+                commandRunSkinPreview(player);
                 return true;
             }
 
@@ -798,7 +799,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             }
 
             boolean removed = removeSkin(target, skinId);
-            player.sendMessage(colorize(removed ? getMessage("skin-remove-success") : getMessage("skin-not-have")));
+            player.sendMessage(colorize(removed ? getMessage("skin-remove-success") : getMessage("does-not-belong")));
             return true;
         }
 
