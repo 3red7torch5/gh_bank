@@ -1,115 +1,58 @@
 package gh.creditcard;
+
 import org.bukkit.*;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitScheduler;
 
-import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.logging.Level;
 
 public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
     private final NamespacedKey cardIdKey = new NamespacedKey(this, "card_id");
     private FileConfiguration config;
-    private FileConfiguration cardsConfig;
-    private File cardsFile;
-    private FileConfiguration cooldownsConfig;
-    private File cooldownsFile;
-    private final Map<String, CardData> cards = new HashMap<>();
     private Material currencyItem;
     private Material cardMaterial;
     private String cardName;
     private List<String> cardLoreTemplate;
     private int cooldownHours;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
-    private final Set<String> usedCardIds = new HashSet<>();
-    private final Random random = new Random();
     private int cardsPerTick;
     private BukkitRunnable autoSaveTask;
     private BukkitScheduler scheduler;
-    private FileConfiguration skinsConfig;
-    private File skinsFile;
-    private static class CardData {
-        String ownerUuid;
-        String ownerName;
-        int balance;
-        String created;
-        String lastUsed;
-        Color cardColor;
-        CardData(Player owner, Color color) {
-            this.ownerUuid = owner.getUniqueId().toString();
-            this.ownerName = owner.getName();
-            this.balance = 0;
-            this.cardColor = color;
-            SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
-            this.created = sdf.format(new Date());
-            this.lastUsed = this.created;
-            Bukkit.getLogger().info("New card created for " + ownerName + " (UUID: " + ownerUuid + ")");
-        }
-        CardData(String ownerUuid, String ownerName, int balance, String created, String lastUsed, int color) {
-            this.ownerUuid = ownerUuid;
-            this.ownerName = ownerName;
-            this.balance = balance;
-            this.created = created;
-            this.lastUsed = lastUsed;
-            this.cardColor = Color.fromRGB(color);
-        }
-        void updateLastUsed() {
-            SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
-            this.lastUsed = sdf.format(new Date());
-        }
-        int getBalance() {
-            return balance;
-        }
-        void setBalance(int balance) {
-            this.balance = balance;
-        }
-        void addBalance(int amount) {
-            this.balance += amount;
-        }
-        boolean removeBalance(int amount) {
-            if (balance >= amount) {
-                balance -= amount;
-                return true;
-            }
-            return false;
-        }
-        Color getCardColor() {
-            return cardColor;
-        }
-        int getColorAsRGB() {
-            return cardColor.asRGB();
-        }
-    }
+
+    private CardManager cardManager;
+    private DatabaseManager databaseManager;
+
     @Override
     public void onEnable() {
         getLogger().info("Credit Card Plugin Enabled!");
         saveDefaultConfig();
         config = getConfig();
         loadCurrencySettings();
-        loadCardsDatabase();
-        loadCooldownsDatabase();
-        loadSkinsDatabase();
+
+        cardManager = new CardManager(this);
+        databaseManager = new DatabaseManager(this);
+
+        databaseManager.loadCardsDatabase(cardManager);
+        databaseManager.loadCooldownsDatabase(cooldowns);
+        databaseManager.loadSkinsDatabase();
         setupAutoSave();
+
         getCommand("карта").setExecutor(this);
         getCommand("карта").setTabCompleter(this);
-        getLogger().info("Plugin loaded with " + cards.size() + " cards in database");
+        getLogger().info("Plugin loaded with " + cardManager.getAllCards().size() + " cards in database");
+
         scheduler = this.getServer().getScheduler();
         getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {
             @EventHandler
@@ -117,16 +60,16 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 ItemStack item = event.getItem();
                 String cardId = getIdFromItem(item);
                 if (
-                    !event.getAction().name().contains("RIGHT_CLICK") ||
-                    item == null || item.getType() == org.bukkit.Material.AIR ||
-                    cardId == null ||
-                    !cards.containsKey(cardId)
+                        !event.getAction().name().contains("RIGHT_CLICK") ||
+                                item == null || item.getType() == org.bukkit.Material.AIR ||
+                                cardId == null ||
+                                !cardManager.hasCard(cardId)
                 ) {
                     return;
                 }
                 ItemStack offhandItem = event.getPlayer().getInventory().getItemInOffHand();
                 if (offhandItem != null && offhandItem.getType() == org.bukkit.Material.SHEARS && event.getPlayer().isSneaking()) {
-                    if (config.getBoolean("destroy-balance-check") && cards.get(cardId).getBalance() != 0) {
+                    if (config.getBoolean("destroy-balance-check") && cardManager.getCard(cardId).getBalance() != 0) {
                         return;
                     }
                     destroyCardInHand(event.getPlayer());
@@ -135,45 +78,24 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 } else {
                     updateCardItem(item, cardId);
                     event.getPlayer().sendActionBar(colorize("&7Баланс: &b" + String.valueOf( // Пробелы для читаемости
-                            String.valueOf(cards.get(cardId).getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")) + " АЛМ"));
+                            String.valueOf(cardManager.getCard(cardId).getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")) + " АЛМ"));
                 }
                 event.setCancelled(true);
             }
         }, this);
     }
+
     @Override
     public void onDisable() {
         if (autoSaveTask != null) {
             autoSaveTask.cancel();
         }
-        saveCardsDatabase();
-        saveCooldownsDatabase();
-        saveSkinsDatabase();
+        databaseManager.saveCardsDatabase(cardManager);
+        databaseManager.saveCooldownsDatabase(cooldowns);
+        databaseManager.saveSkinsDatabase();
         getLogger().info("Credit Card Plugin Disabled!");
     }
-    private void loadCooldownsDatabase() {
-        cooldownsFile = new File(getDataFolder(), config.getString("cooldowns.file", "cooldowns.yml"));
-        if (!cooldownsFile.exists()) {
-            cooldownsConfig = new YamlConfiguration();
-            cooldownsConfig.set("total-cooldowns", 0);
-            cooldownsConfig.set("cooldowns", new HashMap<String, Object>());
-            saveCooldownsDatabase();
-        } else {
-            cooldownsConfig = YamlConfiguration.loadConfiguration(cooldownsFile);
-            ConfigurationSection cooldownsSection = cooldownsConfig.getConfigurationSection("cooldowns");
-            if (cooldownsSection != null) {
-                for (String playerUuidStr : cooldownsSection.getKeys(false)) {
-                    try {
-                        UUID playerUuid = UUID.fromString(playerUuidStr);
-                        long cooldownEnd = cooldownsSection.getLong(playerUuidStr);
-                        cooldowns.put(playerUuid, cooldownEnd);
-                    } catch (IllegalArgumentException e) {
-                        getLogger().warning("Неверный UUID в базе данных кулдаунов: " + playerUuidStr);
-                    }
-                }
-            }
-        }
-    }
+
     private void loadCurrencySettings() {
         String currencyItemName = config.getString("currency.item", "DIAMOND");
         String cardMaterialName = config.getString("currency.card.material", "WOODEN_SHOVEL");
@@ -190,106 +112,16 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         cooldownHours = config.getInt("cooldown.hours", 24);
         cardsPerTick = config.getInt("card-creation.cards-per-tick", 20);
     }
-    private void loadCardsDatabase() {
-        cardsFile = new File(getDataFolder(), config.getString("database.file", "cards.yml"));
-        if (!cardsFile.exists()) {
-            cardsConfig = new YamlConfiguration();
-            cardsConfig.set("total-cards", 0);
-            cardsConfig.set("cards", new HashMap<String, Object>());
-            saveCardsDatabase();
-        } else {
-            cardsConfig = YamlConfiguration.loadConfiguration(cardsFile);
-        }
-        ConfigurationSection cardsSection = cardsConfig.getConfigurationSection("cards");
-        if (cardsSection != null) {
-            for (String cardId : cardsSection.getKeys(false)) {
-                String ownerUuid = cardsSection.getString(cardId + ".owner");
-                String ownerName = cardsSection.getString(cardId + ".owner-name", "неизвестен");
-                int balance = cardsSection.getInt(cardId + ".balance", 0);
-                String created = cardsSection.getString(cardId + ".created", "");
-                String lastUsed = cardsSection.getString(cardId + ".last-used", "");
-                int color = cardsSection.getInt(cardId + ".color", Color.fromRGB(255, 255, 255).asRGB());
-                cards.put(cardId, new CardData(ownerUuid, ownerName, balance, created, lastUsed, color));
-                usedCardIds.add(cardId);
-            }
-        }
-        getLogger().info("Loaded " + cards.size() + " cards from database");
-    }
-    private void saveCardsDatabase() {
-        if (cardsConfig == null) {
-            cardsConfig = new YamlConfiguration();
-        }
-        cardsConfig.set("cards", null);
-        for (Map.Entry<String, CardData> entry : cards.entrySet()) {
-            String path = "cards." + entry.getKey();
-            CardData card = entry.getValue();
-            cardsConfig.set(path + ".owner", card.ownerUuid);
-            cardsConfig.set(path + ".owner-name", card.ownerName);
-            cardsConfig.set(path + ".balance", card.balance);
-            cardsConfig.set(path + ".created", card.created);
-            cardsConfig.set(path + ".last-used", card.lastUsed);
-            cardsConfig.set(path + ".color", card.getColorAsRGB());
-        }
-        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
-        cardsConfig.set("last-save", sdf.format(new Date()));
-        cardsConfig.set("total-cards", cards.size());
-        try {
-            cardsConfig.save(cardsFile);
-            getLogger().info("Saved " + cards.size() + " cards to database");
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Failed to save cards database!", e);
-        }
-    }
-    private void saveCooldownsDatabase() {
-        if (cooldownsConfig == null) {
-            cooldownsConfig = new YamlConfiguration();
-        }
-        if (cooldownsFile == null) {
-            cooldownsFile = new File(getDataFolder(), "cooldowns.yml");
-        }
-        cooldownsConfig.set("cooldowns", null);
-        for (Map.Entry<UUID, Long> entry : cooldowns.entrySet()) {
-            String path = "cooldowns." + entry.getKey().toString();
-            cooldownsConfig.set(path, entry.getValue());
-        }
-        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
-        cooldownsConfig.set("version", 1);
-        cooldownsConfig.set("last-save", sdf.format(new Date()));
-        cooldownsConfig.set("total-cooldowns", cooldowns.size());
-        try {
-            cooldownsConfig.save(cooldownsFile);
-            getLogger().info("Saved " + cooldowns.size() + " card creation cooldowns to database");
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Failed to save card creation cooldowns database!", e);
-        }
-    }
-    private void loadSkinsDatabase() {
-        skinsFile = new File(getDataFolder(), "skins.yml");
-        if (!skinsFile.exists()) {
-            skinsConfig = new YamlConfiguration();
-            skinsConfig.set("skins", new HashMap<String, Object>());
-            saveSkinsDatabase();
-        } else {
-            skinsConfig = YamlConfiguration.loadConfiguration(skinsFile);
-        }
-        getLogger().info("Loaded skins database");
-    }
-    private void saveSkinsDatabase() {
-        try {
-            skinsConfig.save(skinsFile);
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Failed to save skins database!", e);
-        }
-    }
+
     private void setupAutoSave() {
         int autoSaveInterval = config.getInt("database.auto-save", 300);
         if (autoSaveInterval > 0) {
             autoSaveTask = new BukkitRunnable() {
                 @Override
                 public void run() {
-                    saveCardsDatabase();
+                    databaseManager.saveCardsDatabase(cardManager);
                     getLogger().info("Saved cards database");
-                    saveSkinsDatabase();
+                    databaseManager.saveSkinsDatabase();
                     getLogger().info("Saved skins database");
                 }
             };
@@ -297,11 +129,13 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             getLogger().info("Auto-save enabled every " + autoSaveInterval + " seconds");
         }
     }
+
     private String getMessage(String key) {
         String prefix = config.getString("messages.prefix", "[Card] ");
         String message = config.getString("messages." + key, "&cMessage not found: " + key);
         return colorize(prefix + message);
     }
+
     private String getMessage(String key, Map<String, String> replacements) {
         String message = getMessage(key);
         for (Map.Entry<String, String> entry : replacements.entrySet()) {
@@ -309,37 +143,11 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         return message;
     }
-    private String colorize(String text) {
+
+    public String colorize(String text) {
         return ChatColor.translateAlternateColorCodes('&', text);
     }
-    private Color generateRandomColor() {
-        int r = random.nextInt(256);
-        int g = random.nextInt(256);
-        int b = random.nextInt(256);
-        return Color.fromRGB(r, g, b);
-    }
-    private String generateUniqueCardId() {
-        String id;
-        int attempts = 0;
-        do {
-            if (attempts++ > 100) {
-                getLogger().warning("Failed to generate unique ID after 100 attempts!");
-                id = String.format("%012d", System.currentTimeMillis() % 10000000000000L);
-                if (!usedCardIds.contains(id)) {
-                    usedCardIds.add(id);
-                    return id;
-                }
-            }
-            long randomId = Math.abs(random.nextLong()) % 1000000000000L;
-            id = String.format("%08d", randomId);
-            if (id.length() >= 8) {
-                id = id.substring(0, 4) + "-" +
-                        id.substring(4, 8);
-            }
-        } while (usedCardIds.contains(id));
-        usedCardIds.add(id);
-        return id;
-    }
+
     private boolean hasCooldown(Player player) {
         if (player.hasPermission(config.getString("cooldown.bypass-permission", "creditcard.cooldown.bypass"))) {
             return false;
@@ -352,6 +160,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         long currentTime = System.currentTimeMillis();
         return currentTime < cooldownEnd;
     }
+
     private String getCooldownRemaining(Player player) {
         UUID playerUuid = player.getUniqueId();
         Long cooldownEnd = cooldowns.get(playerUuid);
@@ -367,13 +176,15 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         long seconds = (remaining % (1000 * 60)) / 1000;
         return hours + "ч " + minutes + "м " + seconds + "с";
     }
+
     public List<String> getAvailableSkins(Player player) {
         String path = "skins." + player.getUniqueId().toString();
-        if (skinsConfig.contains(path + ".skins")) {
-            return skinsConfig.getStringList(path + ".skins");
+        if (databaseManager.getSkinsConfig().contains(path + ".skins")) {
+            return databaseManager.getSkinsConfig().getStringList(path + ".skins");
         }
         return new ArrayList<>();
     }
+
     public boolean addSkin(Player player, String skinID) {
         try {
             Integer.parseInt(skinID);
@@ -385,98 +196,66 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             return false;
         }
         String playerPath = "skins." + player.getUniqueId().toString();
-        if (!skinsConfig.contains(playerPath)) {
-            skinsConfig.set(playerPath + ".name", player.getName());
-            skinsConfig.set(playerPath + ".skins", new ArrayList<String>());
+        if (!databaseManager.getSkinsConfig().contains(playerPath)) {
+            databaseManager.getSkinsConfig().set(playerPath + ".name", player.getName());
+            databaseManager.getSkinsConfig().set(playerPath + ".skins", new ArrayList<String>());
         }
-        List<String> currentSkins = skinsConfig.getStringList(playerPath + ".skins");
+        List<String> currentSkins = databaseManager.getSkinsConfig().getStringList(playerPath + ".skins");
         if (currentSkins.contains(skinID)) {
             return false;
         }
         currentSkins.add(skinID);
-        skinsConfig.set(playerPath + ".skins", currentSkins);
-        if (!skinsConfig.getString(playerPath + ".name", "").equals(player.getName())) {
-            skinsConfig.set(playerPath + ".name", player.getName());
+        databaseManager.getSkinsConfig().set(playerPath + ".skins", currentSkins);
+        if (!databaseManager.getSkinsConfig().getString(playerPath + ".name", "").equals(player.getName())) {
+            databaseManager.getSkinsConfig().set(playerPath + ".name", player.getName());
         }
-        saveSkinsDatabase();
+        databaseManager.saveSkinsDatabase();
         return true;
     }
+
     public boolean removeSkin(Player player, String skinID) {
         String playerPath = "skins." + player.getUniqueId().toString();
-        if (!skinsConfig.contains(playerPath)) {
+        if (!databaseManager.getSkinsConfig().contains(playerPath)) {
             return false;
         }
-        List<String> currentSkins = skinsConfig.getStringList(playerPath + ".skins");
+        List<String> currentSkins = databaseManager.getSkinsConfig().getStringList(playerPath + ".skins");
         if (!currentSkins.contains(skinID)) {
             return false;
         }
         currentSkins.remove(skinID);
-        skinsConfig.set(playerPath + ".skins", currentSkins);
+        databaseManager.getSkinsConfig().set(playerPath + ".skins", currentSkins);
         if (currentSkins.isEmpty()) {
-            skinsConfig.set(playerPath, null);
+            databaseManager.getSkinsConfig().set(playerPath, null);
         }
-        saveSkinsDatabase();
+        databaseManager.saveSkinsDatabase();
         return true;
     }
+
     private void setCooldown(Player player) {
         long cooldownEnd = System.currentTimeMillis() + (cooldownHours * 60 * 60 * 1000L);
         cooldowns.put(player.getUniqueId(), cooldownEnd);
-        saveCooldownsDatabase();
+        databaseManager.saveCooldownsDatabase(cooldowns);
     }
+
     private String createCard(Player player) {
-        String cardId = generateUniqueCardId();
-        Color randomColor = generateRandomColor();
-        cards.put(cardId, new CardData(player, randomColor));
+        String cardId = cardManager.createCard(player);
         setCooldown(player);
-        saveCardsDatabase();
+        databaseManager.saveCardsDatabase(cardManager);
         getLogger().info("Created new card " + cardId + " for " + player.getName());
         return cardId;
     }
+
     private ItemStack makeCard(String cardId) {
-        CardData cardData = cards.get(cardId);
-        if (cardData == null) {
-            getLogger().warning("Tried to create card item for non-existent card: " + cardId);
-            return null;
-        }
-        ItemStack card = new ItemStack(cardMaterial);
-        LeatherArmorMeta meta = (LeatherArmorMeta) card.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(cardName.replace('&', '§'));
-            meta.setColor(cardData.getCardColor());
-            meta.addItemFlags(
-                    ItemFlag.HIDE_ATTRIBUTES,
-                    ItemFlag.HIDE_ENCHANTS,
-                    ItemFlag.HIDE_UNBREAKABLE,
-                    ItemFlag.HIDE_DESTROYS,
-                    ItemFlag.HIDE_PLACED_ON,
-                    ItemFlag.HIDE_DYE
-            );
-            List<String> lore = new ArrayList<>();
-            Map<String, String> placeholders = new HashMap<>();
-            placeholders.put("card_id", cardId);
-            placeholders.put("balance", String.valueOf(cardData.getBalance()));
-            placeholders.put("currency_item", currencyItem.name().toLowerCase().replace("_", " "));
-            placeholders.put("owner_name", cardData.ownerName);
-            for (String line : cardLoreTemplate) {
-                String processedLine = line;
-                for (Map.Entry<String, String> entry : placeholders.entrySet()) {
-                    processedLine = processedLine.replace("%" + entry.getKey() + "%", entry.getValue());
-                }
-                lore.add(colorize(processedLine));
-            }
-            meta.setLore(lore);
-            PersistentDataContainer pdc = meta.getPersistentDataContainer();
-            pdc.set(cardIdKey, PersistentDataType.STRING, cardId);
-            card.setItemMeta(meta);
-        }
-        return card;
+        return cardManager.makeCard(cardId, cardMaterial, cardName, cardLoreTemplate, currencyItem);
     }
+
     private String getIdFromItem(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return null;
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         return pdc.get(cardIdKey, PersistentDataType.STRING);
     }
+
     private int countPlayerCurrency(Player player) {
         int count = 0;
         for (ItemStack item : player.getInventory().getContents()) {
@@ -488,6 +267,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         return count;
     }
+
     public int countPlayerAir(Player player) {
         int emptySlots = 0;
         ItemStack[] contents = player.getInventory().getContents();
@@ -498,6 +278,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         return emptySlots;
     }
+
     private boolean takePlayerCurrency(Player player, int amount) {
         if (countPlayerCurrency(player) < amount) return false;
         int remaining = amount;
@@ -518,6 +299,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         return true;
     }
+
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -553,6 +335,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 return true;
         }
     }
+
     private void showHelp(Player player) {
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("currency_item", getCurrencyItemName());
@@ -572,6 +355,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("help-fabricate", placeholders));
         }
     }
+
     private boolean commandCreate(Player player, String[] args) {
         if (hasCooldown(player)) {
             Map<String, String> placeholders = new HashMap<>();
@@ -618,7 +402,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 player.sendActionBar(progressText);
                 if (currentIndex[0] >= finalAmount) {
                     setCooldown(player);
-                    saveCardsDatabase();
+                    databaseManager.saveCardsDatabase(cardManager);
                     Map<String, String> placeholders = new HashMap<>();
                     placeholders.put("card_count", String.valueOf(finalAmount));
                     player.sendMessage(getMessage("cards-created-multiple", placeholders));
@@ -635,6 +419,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         player.sendActionBar(colorize("&7Создание карт: &f0&7/&f" + amount + " &7(&a0%&7)"));
         return true;
     }
+
     private boolean commandFabricate(Player player, String[] args) {
         if (!player.hasPermission("creditcard.fabricate")) {
             player.sendMessage(getMessage("no-permission"));
@@ -655,14 +440,13 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             return true;
         }
         customId = customId.substring(0, 4) + "-" + customId.substring(4, Math.min(customId.length(), 8));
-        if (usedCardIds.contains(customId) || cards.containsKey(customId)) {
+        if (cardManager.getUsedCardIds().contains(customId) || cardManager.hasCard(customId)) {
             Map<String, String> placeholders = new HashMap<>();
             player.sendMessage(getMessage("already-exists"));
             return true;
         }
-        Color randomColor = generateRandomColor();
-        cards.put(customId, new CardData(player, randomColor));
-        usedCardIds.add(customId);
+        CardData cardData = new CardData(player, cardManager.generateRandomColor());
+        cardManager.addCard(customId, cardData);
         ItemStack card = makeCard(customId);
         if (card == null) {
             player.sendMessage(getMessage("invalid-card"));
@@ -679,10 +463,11 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("card-created", placeholders));
             player.sendMessage(getMessage("inventory-full"));
         }
-        saveCardsDatabase();
+        databaseManager.saveCardsDatabase(cardManager);
         getLogger().info("Fabricated new card " + customId + " for " + player.getName());
         return true;
     }
+
     private boolean commandForge(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(getMessage("usage-forge"));
@@ -710,6 +495,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         return true;
     }
+
     private boolean commandTransfer(Player player, String[] args) {
         if (args.length < 3) {
             player.sendMessage(getMessage("usage-transfer"));
@@ -742,12 +528,12 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("no-card-in-hand"));
             return true;
         }
-        CardData senderCard = cards.get(senderCardId);
+        CardData senderCard = cardManager.getCard(senderCardId);
         if (senderCard == null) {
             player.sendMessage(getMessage("invalid-card"));
             return true;
         }
-        CardData targetCard = cards.get(targetCardId);
+        CardData targetCard = cardManager.getCard(targetCardId);
         if (targetCard == null) {
             Map<String, String> placeholders = new HashMap<>();
             placeholders.put("card_id", targetCardId);
@@ -791,10 +577,11 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             targetPlayer.sendMessage(getMessage("transfer-received", targetPlaceholders));
             player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 1.0f, 0.1f);
         }
-        saveCardsDatabase();
+        databaseManager.saveCardsDatabase(cardManager);
         getLogger().info("Transfer " + amount + " from card " + senderCardId + " to card " + targetCardId);
         return true;
     }
+
     private boolean commandBalance(Player player) {
         ItemStack hand = player.getInventory().getItemInMainHand();
         String cardId = getIdFromItem(hand);
@@ -802,7 +589,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("no-card-in-hand"));
             return true;
         }
-        CardData card = cards.get(cardId);
+        CardData card = cardManager.getCard(cardId);
         if (card == null) {
             player.sendMessage(getMessage("invalid-card"));
             return true;
@@ -817,6 +604,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         player.sendMessage(getMessage("balance-show", placeholders));
         return true;
     }
+
     private boolean commandDeposit(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(getMessage("usage-deposit"));
@@ -839,7 +627,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("no-card-in-hand"));
             return true;
         }
-        CardData card = cards.get(cardId);
+        CardData card = cardManager.getCard(cardId);
         if (card == null) {
             player.sendMessage(getMessage("invalid-card"));
             return true;
@@ -865,9 +653,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         placeholders.put("balance", String.valueOf(card.getBalance()));
         placeholders.put("currency_item", getCurrencyItemName());
         player.sendMessage(getMessage("deposit-success", placeholders));
-        saveCardsDatabase();
+        databaseManager.saveCardsDatabase(cardManager);
         return true;
     }
+
     private boolean commandWithdraw(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(getMessage("usage-withdraw"));
@@ -890,7 +679,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("no-card-in-hand"));
             return true;
         }
-        CardData card = cards.get(cardId);
+        CardData card = cardManager.getCard(cardId);
         if (card == null) {
             player.sendMessage(getMessage("invalid-card"));
             return true;
@@ -925,9 +714,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         if (!leftover.isEmpty()) {
             player.sendMessage(getMessage("inventory-full"));
         }
-        saveCardsDatabase();
+        databaseManager.saveCardsDatabase(cardManager);
         return true;
     }
+
     private boolean commandReload(Player player) {
         if (!player.hasPermission("creditcard.reload")) {
             player.sendMessage(getMessage("no-permission"));
@@ -940,6 +730,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         getLogger().info("Configuration reloaded by " + player.getName());
         return true;
     }
+
     private boolean commandSkins(Player player, String[] args) {
         ItemStack hand = player.getInventory().getItemInMainHand();
         String cardId = getIdFromItem(hand);
@@ -947,7 +738,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("no-card-in-hand"));
             return true;
         }
-        CardData card = cards.get(cardId);
+        CardData card = cardManager.getCard(cardId);
         if (card == null) {
             player.sendMessage(getMessage("invalid-card"));
             return true;
@@ -1042,9 +833,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         player.sendMessage(getMessage("usage-skins"));
         return true;
     }
+
     private void updateCardItem(ItemStack cardItem, String cardId) {
         if (cardItem == null || !cardItem.hasItemMeta()) return;
-        CardData card = cards.get(cardId);
+        CardData card = cardManager.getCard(cardId);
         if (card == null) return;
         ItemMeta meta = cardItem.getItemMeta();
         if (meta == null) return;
@@ -1065,6 +857,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         meta.setLore(lore);
         cardItem.setItemMeta(meta);
     }
+
     private boolean destroyCardInHand(Player player) {
         ItemStack hand = player.getInventory().getItemInMainHand();
         String cardId = getIdFromItem(hand);
@@ -1072,13 +865,12 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("no-card-in-hand"));
             return false;
         }
-        CardData card = cards.get(cardId);
+        CardData card = cardManager.getCard(cardId);
         if (card == null) {
             player.sendMessage(getMessage("invalid-card"));
             return false;
         }
-        cards.remove(cardId);
-        usedCardIds.remove(cardId);
+        cardManager.removeCard(cardId);
         ItemMeta meta = hand.getItemMeta();
         if (meta != null) {
             List<String> lore = meta.getLore();
@@ -1089,13 +881,15 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             meta.setLore(lore);
             hand.setItemMeta(meta);
         }
-        saveCardsDatabase();
+        databaseManager.saveCardsDatabase(cardManager);
         getLogger().info("Card " + cardId + " owned by " + card.ownerName + " was destroyed by " + player.getName());
         return true;
     }
+
     private String getCurrencyItemName() {
         return currencyItem.name().toLowerCase().replace("_", " ");
     }
+
     private boolean commandRunSkinPreview(Player player) {
         ItemStack hand = player.getInventory().getItemInMainHand();
         String cardId = getIdFromItem(hand);
@@ -1103,7 +897,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("no-card-in-hand"));
             return true;
         }
-        CardData card = cards.get(cardId);
+        CardData card = cardManager.getCard(cardId);
         if (card == null) {
             player.sendMessage(getMessage("invalid-card"));
             return true;
@@ -1151,7 +945,6 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         player.sendMessage(colorize("&cОшибка в формате ID скина: " + skinId));
                     }
                 } else {
-                    player.sendMessage(colorize("&cПоказ прерван: карта была изменена!"));
                     return;
                 }
                 currentIndex[0]++;
@@ -1170,6 +963,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         },totalSkins+1);
         return true;
     }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
         List<String> completions = new ArrayList<>();
@@ -1199,12 +993,12 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     if (sender instanceof Player) {
                         Player player = (Player) sender;
                         ItemStack hand = player.getInventory().getItemInMainHand();
-                        if (cards == null) {
+                        if (cardManager.getAllCards() == null) {
                             return completions;
                         }
                         String cardId = getIdFromItem(hand);
-                        if (cardId != null && cards.containsKey(cardId)) {
-                            CardData card = cards.get(cardId);
+                        if (cardId != null && cardManager.hasCard(cardId)) {
+                            CardData card = cardManager.getCard(cardId);
                             if (card != null) {
                                 if (subCommand.equals("пополнить")) {
                                     completions.add(String.valueOf(countPlayerCurrency(player)));
@@ -1237,12 +1031,12 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     if (sender instanceof Player) {
                         Player player = (Player) sender;
                         ItemStack hand = player.getInventory().getItemInMainHand();
-                        if (cards == null) {
+                        if (cardManager.getAllCards() == null) {
                             return completions;
                         }
                         String cardId = getIdFromItem(hand);
-                        if (cardId != null && cards.containsKey(cardId)) {
-                            CardData card = cards.get(cardId);
+                        if (cardId != null && cardManager.hasCard(cardId)) {
+                            CardData card = cardManager.getCard(cardId);
                             if (card != null) {
                                 completions.add(String.valueOf(card.getBalance()));
                             }
@@ -1298,9 +1092,21 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 }
             }
         } catch (Exception e) {
-            getLogger().log(Level.WARNING, "Error during tab completion for command '/карта'", e);
+            getLogger().log(java.util.logging.Level.WARNING, "Error during tab completion for command '/карта'", e);
             return Collections.emptyList();
         }
         return completions;
+    }
+
+    public NamespacedKey getCardIdKey() {
+        return cardIdKey;
+    }
+
+    public CardManager getCardManager() {
+        return cardManager;
+    }
+
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
     }
 }
