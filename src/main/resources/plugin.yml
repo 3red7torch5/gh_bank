@@ -32,3 +32,6 @@ permissions:
   creditcard.skinmanagement:
     description: Allows managing skins
     default: op
+  creditcard.cooldownbypass:
+    description: No creation cooldown
+    default: op

@@ -357,7 +357,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
     }
 
     private boolean commandCreate(Player player, String[] args) {
-        if (hasCooldown(player)) {
+        if (hasCooldown(player) && !player.hasPermission("creditcard.cooldownbypass")) {
             Map<String, String> placeholders = new HashMap<>();
             placeholders.put("cooldown", getCooldownRemaining(player));
             player.sendMessage(getMessage("cooldown-active", placeholders));
@@ -1098,6 +1098,14 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                                 }
                             }
                         }
+                    }
+                }
+            } else if (args.length == 4) {
+                String subCommand = args[0].toLowerCase();
+                String current = args[3].toLowerCase();
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (p.getName().toLowerCase().startsWith(current)) {
+                        completions.add(p.getName());
                     }
                 }
             }
