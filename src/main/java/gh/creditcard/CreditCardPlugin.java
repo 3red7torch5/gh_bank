@@ -376,7 +376,9 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         }
         setCooldown(player);
         databaseManager.saveCardsDatabase(cardManager);
-        player.sendMessage(getMessage("card-created"));
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("card_id", cardId);
+        player.sendMessage(getMessage("card-created",placeholders));
         return true;
     }
 
