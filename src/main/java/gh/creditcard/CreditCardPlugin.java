@@ -694,104 +694,152 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
     }
 
     private boolean commandSkins(Player player, String[] args) {
-        ItemStack hand = player.getInventory().getItemInMainHand();
-        String cardId = getIdFromItem(hand);
-        if (cardId == null) {
-            player.sendMessage(getMessage("no-card-in-hand"));
-            return true;
-        }
-        CardData card = cardManager.getCard(cardId);
-        if (card == null) {
-            player.sendMessage(getMessage("invalid-card"));
-            return true;
-        }
         if (args.length < 2) {
             Map<String, String> placeholders = new HashMap<>();
-            List<String> playerSkins = getAvailableSkins(player);
-            placeholders.put("skins", String.join(", ", playerSkins));
+            placeholders.put("skins", String.join(", ", getAvailableSkins(player)));
             player.sendMessage(getMessage("skins-show", placeholders));
             return true;
         }
-        if (args.length == 2) {
-            String subAction = args[1].toLowerCase();
-            if (subAction.equals("список")) {
-                Map<String, String> placeholders = new HashMap<>();
-                List<String> playerSkins = getAvailableSkins(player);
-                placeholders.put("skins", String.join(", ", playerSkins));
-                player.sendMessage(getMessage("skins-show", placeholders));
-            } else if (subAction.equals("прогнать")) {
-                return commandRunSkinPreview(player);
-            } else {
-                player.sendMessage(getMessage("usage-skins"));
-            }
-            return true;
-        }
-        String skinId = args[2];
-        try {
-            Integer.parseInt(skinId);
-        } catch (NumberFormatException e) {
-            player.sendMessage(getMessage("invalid-skinid"));
-            return true;
-        }
-        if (args[1].equalsIgnoreCase("добавить") && player.hasPermission("creditcard.skinmanagement")) {
-            if (skinId == "-1") {
-                ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
-                List<String> currentSkins = getAvailableSkins(player);
-                for (String configSkinId : skinNamesSection.getKeys(false)) {
-                    try {
-                        if (currentSkins.contains(configSkinId)) {
-                            continue;
-                        }
-                        addSkin(player, configSkinId);
-                    } catch (Exception e) {
-                        getLogger().warning("Ошибка при добавлении скина " + configSkinId + " для игрока " + player.getName());
-                    }
+
+        String subAction = args[1].toLowerCase();
+
+        if (subAction.equals("список")) {
+            Player target = player;
+            if (args.length >= 3) {
+                if (!player.hasPermission("creditcard.skinmanagement")) {
+                    player.sendMessage(getMessage("no-permission"));
+                    return true;
+                }
+                target = Bukkit.getPlayer(args[2]);
+                if (target == null) {
+                    player.sendMessage(colorize("&cИгрок не найден!"));
+                    return true;
                 }
             }
-            ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
-            if (skinNamesSection == null || !skinNamesSection.contains(skinId)) {
+
+            Map<String, String> placeholders = new HashMap<>();
+            placeholders.put("skins", String.join(", ", getAvailableSkins(target)));
+            player.sendMessage(getMessage("skins-show", placeholders));
+            return true;
+        }
+
+        if (subAction.equals("прогнать")) {
+            return commandRunSkinPreview(player);
+        }
+
+        if (args.length < 3) {
+            player.sendMessage(getMessage("usage-skins"));
+            return true;
+        }
+
+        String skinId = args[2];
+
+        if (!subAction.equals("поставить")) {
+            try {
+                Integer.parseInt(skinId);
+            } catch (NumberFormatException e) {
+                player.sendMessage(getMessage("invalid-skinid"));
                 return true;
             }
-            boolean added = addSkin(player, skinId);
-            if (added) {
-                player.sendMessage(colorize(getMessage("skin-add-success")));
-            } else {
-                player.sendMessage(colorize(getMessage("skin-already-has")));
+        }
+
+        if (subAction.equals("добавить")) {
+            if (!player.hasPermission("creditcard.skinmanagement")) {
+                player.sendMessage(getMessage("no-permission"));
+                return true;
             }
+
+            Player target = player;
+            if (args.length >= 4) {
+                target = Bukkit.getPlayer(args[3]);
+                if (target == null) {
+                    player.sendMessage(colorize("&cИгрок не найден!"));
+                    return true;
+                }
+            }
+
+            if (skinId.equals("-1")) {
+                ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+                if (skinNamesSection != null) {
+                    List<String> currentSkins = getAvailableSkins(target);
+                    for (String configSkinId : skinNamesSection.getKeys(false)) {
+                        if (!currentSkins.contains(configSkinId)) {
+                            addSkin(target, configSkinId);
+                        }
+                    }
+                }
+                return true;
+            }
+
+            ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+            if (skinNamesSection == null || !skinNamesSection.contains(skinId)) {
+                player.sendMessage(colorize("&cСкин с ID " + skinId + " не существует!"));
+                return true;
+            }
+
+            boolean added = addSkin(target, skinId);
+            player.sendMessage(colorize(added ? getMessage("skin-add-success") : getMessage("skin-already-has")));
             return true;
         }
-        if (args[1].equalsIgnoreCase("забрать") && player.hasPermission("creditcard.skinmanagement")) {
-            boolean removed = removeSkin(player, skinId);
-            if (removed) {
-                player.sendMessage(colorize(getMessage("skin-remove-success")));
-            } else {
-                player.sendMessage(colorize(getMessage("skin-not-have")));
+
+        if (subAction.equals("забрать")) {
+            if (!player.hasPermission("creditcard.skinmanagement")) {
+                player.sendMessage(getMessage("no-permission"));
+                return true;
             }
+
+            Player target = player;
+            if (args.length >= 4) {
+                target = Bukkit.getPlayer(args[3]);
+                if (target == null) {
+                    player.sendMessage(colorize("&cИгрок не найден!"));
+                    return true;
+                }
+            }
+
+            boolean removed = removeSkin(target, skinId);
+            player.sendMessage(colorize(removed ? getMessage("skin-remove-success") : getMessage("skin-not-have")));
             return true;
         }
-        if (args[1].equalsIgnoreCase("поставить")) {
-            List<String> availableSkins = getAvailableSkins(player);
-            if (!availableSkins.contains(skinId)) {
+
+        if (subAction.equals("поставить")) {
+            ItemStack hand = player.getInventory().getItemInMainHand();
+            if (getIdFromItem(hand) == null) {
+                player.sendMessage(getMessage("no-card-in-hand"));
+                return true;
+            }
+
+            try {
+                Integer.parseInt(skinId);
+            } catch (NumberFormatException e) {
+                player.sendMessage(getMessage("invalid-skinid"));
+                return true;
+            }
+
+            if (!getAvailableSkins(player).contains(skinId)) {
                 player.sendMessage(getMessage("does-not-belong"));
                 return true;
             }
+
             ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
             if (skinNamesSection == null || !skinNamesSection.contains(skinId)) {
-                player.sendMessage(colorize("&cЭтот ID скина не существует в конфигурации!"));
+                player.sendMessage(colorize("&cСкин с ID " + skinId + " не существует!"));
                 return true;
             }
-            try {
-                int skinIdInt = Integer.parseInt(skinId);
-                ItemMeta meta = hand.getItemMeta();
-                meta.setCustomModelData(skinIdInt);
-                String skinName = config.getString("skin-names." + skinId);
+
+            ItemMeta meta = hand.getItemMeta();
+            meta.setCustomModelData(Integer.parseInt(skinId));
+
+            String skinName = config.getString("skin-names." + skinId);
+            if (skinName != null) {
                 meta.setDisplayName(skinName.replace('&', '§'));
-                hand.setItemMeta(meta);
-            } catch (NumberFormatException e) {
-                player.sendMessage(getMessage("invalid-skinid"));
             }
+
+            hand.setItemMeta(meta);
+            player.sendMessage(colorize("&aСкин установлен!"));
             return true;
         }
+
         player.sendMessage(getMessage("usage-skins"));
         return true;
     }
