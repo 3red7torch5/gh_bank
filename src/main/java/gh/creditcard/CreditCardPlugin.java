@@ -363,60 +363,20 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             player.sendMessage(getMessage("cooldown-active", placeholders));
             return true;
         }
-        int amount = 1;
-        if (args.length > 1) {
-            try {
-                if (player.hasPermission("creditcard.masscreate")){
-                    amount = Integer.parseInt(args[1]);
-                }
-                if (amount <= 0) {
-                    player.sendMessage(getMessage("invalid-amount"));
-                    return true;
-                }
-            } catch (NumberFormatException e) {
-                player.sendMessage(getMessage("invalid-amount"));
-                return true;
+
+        String cardId = createCard(player);
+        ItemStack card = makeCard(cardId);
+
+        if (card != null) {
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(card);
+            if (!leftover.isEmpty()) {
+                player.getWorld().dropItem(player.getLocation(), card);
+                player.sendMessage(getMessage("inventory-full"));
             }
         }
-        final int finalAmount = amount;
-        final boolean[] inventoryFull = {false};
-        final int[] currentIndex = {0};
-        for (int i = 0; i < finalAmount; i++) {
-            final int cardNumber = i + 1;
-            scheduler.runTaskLater(this, () -> {
-                if (player == null || !player.isOnline()) {
-                    return;
-                }
-                String cardId = createCard(player);
-                ItemStack card = makeCard(cardId);
-                if (card != null) {
-                    Map<Integer, ItemStack> leftover = player.getInventory().addItem(card);
-                    if (!leftover.isEmpty()) {
-                        player.getWorld().dropItem(player.getLocation(), card);
-                        inventoryFull[0] = true;
-                    }
-                }
-                currentIndex[0]++;
-                int progressPercent = (cardNumber * 100 / finalAmount);
-                String progressText = colorize("&7Создание карт: &f" + cardNumber + "&7/&f" + finalAmount + " &7(&a" + progressPercent + "%&7)");
-                player.sendActionBar(progressText);
-                if (currentIndex[0] >= finalAmount) {
-                    setCooldown(player);
-                    databaseManager.saveCardsDatabase(cardManager);
-                    Map<String, String> placeholders = new HashMap<>();
-                    placeholders.put("card_count", String.valueOf(finalAmount));
-                    player.sendMessage(getMessage("cards-created-multiple", placeholders));
-                    if (inventoryFull[0]) {
-                        player.sendMessage(getMessage("inventory-full"));
-                    }
-                    player.sendActionBar("");
-                }
-            }, i);
-        }
-        Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("card_count", String.valueOf(amount));
-        player.sendMessage(colorize("&aНачато создание " + amount + " карт. Подождите..."));
-        player.sendActionBar(colorize("&7Создание карт: &f0&7/&f" + amount + " &7(&a0%&7)"));
+        setCooldown(player);
+        databaseManager.saveCardsDatabase(cardManager);
+        player.sendMessage(getMessage("card-created"));
         return true;
     }
 

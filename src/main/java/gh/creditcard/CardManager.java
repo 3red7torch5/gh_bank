@@ -56,8 +56,7 @@ public class CardManager {
         return cardId;
     }
 
-    public ItemStack makeCard(String cardId, Material cardMaterial, String cardName,
-                              List<String> cardLoreTemplate, Material currencyItem) {
+    public ItemStack makeCard(String cardId, Material cardMaterial, String cardName, List<String> cardLoreTemplate, Material currencyItem) {
         CardData cardData = cards.get(cardId);
         if (cardData == null) {
             plugin.getLogger().warning("Tried to create card item for non-existent card: " + cardId);
