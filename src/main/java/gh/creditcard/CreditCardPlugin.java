@@ -951,10 +951,8 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         meta.setCustomModelData(skinIdInt);
                         meta.setDisplayName(skinName.replace('&', '§'));
                         currentHand.setItemMeta(meta);
-                        int progressPercent = (skinNumber * 100 / totalSkins);
-                        String progressText = colorize("&7Скин: &f#" + skinId +
-                                " &7(" + skinNumber + "/" + totalSkins +
-                                " &7- &a" + progressPercent + "%&7)");
+                        String progressText = colorize("Промотка #" + skinId +
+                                " " + skinNumber + "/" + totalSkins);
                         player.sendActionBar(progressText);
                         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f + (skinNumber * 0.02f));
                     } catch (NumberFormatException e) {

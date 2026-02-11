@@ -30,7 +30,10 @@ public class CardManager {
 
     public boolean isOwner(Player player, String cardId) {
         CardData data = cards.get(cardId);
-        return data != null && data.getOwnerUuid().equals(player.getUniqueId());
+        if (data == null) {
+            return false;
+        }
+        return data.getOwnerUuid().equals(player.getUniqueId().toString());
     }
 
     public void addCard(String cardId, CardData cardData) {
