@@ -768,6 +768,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         }
                     }
                 }
+                commandRunSkinPreview(player);
                 return true;
             }
 
