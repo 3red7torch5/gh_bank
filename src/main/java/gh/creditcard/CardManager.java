@@ -4,7 +4,6 @@ import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -25,8 +24,13 @@ public class CardManager {
         return cards.get(cardId);
     }
 
-    public boolean hasCard(String cardId) {
+    public boolean exists(String cardId) {
         return cards.containsKey(cardId);
+    }
+
+    public boolean isOwner(Player player, String cardId) {
+        CardData data = cards.get(cardId);
+        return data != null && data.getOwnerUuid().equals(player.getUniqueId());
     }
 
     public void addCard(String cardId, CardData cardData) {

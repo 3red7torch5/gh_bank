@@ -30,10 +30,11 @@ messages:
   transfer-success: "&7Переведено %amount% деняк на карту %target_card% (%target_owner%). Баланс: %balance%"
   skins-show: "Твои скины лол: %skins%"
   invalid-skinid: "Неверный айди скина"
-  does-not-belong: "У тебя нет такого"
+  does-not-belong: "Такого не имеется"
   skin-already-has: "Уже имеется такой скин"
   skin-add-success: "Добавлен скин аэыэаэы"
   skin-remove-success: "Забран скин аэыэаэы"
+  not-yours: "Э сука это не твоя карта"
 
   no-card-in-hand: "&cВозьмите карту в руку"
   invalid-card: "&cОшибка при обработке карты"
@@ -77,6 +78,7 @@ database:
   cooldowns-file: "cooldowns.yml"
 
 destroy-balance-check: false
+skin-card-owner-check: true
 skin-names:
   1000: "&6Банковская карта"
   1001: "&bБанковская карта \"Аква\""

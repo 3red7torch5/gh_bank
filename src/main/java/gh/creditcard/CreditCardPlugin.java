@@ -63,7 +63,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         !event.getAction().name().contains("RIGHT_CLICK") ||
                                 item == null || item.getType() == org.bukkit.Material.AIR ||
                                 cardId == null ||
-                                !cardManager.hasCard(cardId)
+                                !cardManager.exists(cardId)
                 ) {
                     return;
                 }
@@ -402,7 +402,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             return true;
         }
         customId = customId.substring(0, 4) + "-" + customId.substring(4, Math.min(customId.length(), 8));
-        if (cardManager.getUsedCardIds().contains(customId) || cardManager.hasCard(customId)) {
+        if (cardManager.getUsedCardIds().contains(customId) || cardManager.exists(customId)) {
             Map<String, String> placeholders = new HashMap<>();
             player.sendMessage(getMessage("already-exists"));
             return true;
@@ -805,8 +805,13 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
 
         if (subAction.equals("поставить")) {
             ItemStack hand = player.getInventory().getItemInMainHand();
-            if (getIdFromItem(hand) == null) {
+            String cardId = getIdFromItem(hand);
+            if (cardId == null) {
                 player.sendMessage(getMessage("no-card-in-hand"));
+                return true;
+            }
+            if (!cardManager.isOwner(player,cardId)) {
+                player.sendMessage(getMessage("not-yours"));
                 return true;
             }
 
@@ -1008,7 +1013,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             return completions;
                         }
                         String cardId = getIdFromItem(hand);
-                        if (cardId != null && cardManager.hasCard(cardId)) {
+                        if (cardId != null && cardManager.exists(cardId)) {
                             CardData card = cardManager.getCard(cardId);
                             if (card != null) {
                                 if (subCommand.equals("пополнить")) {
@@ -1046,7 +1051,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                             return completions;
                         }
                         String cardId = getIdFromItem(hand);
-                        if (cardId != null && cardManager.hasCard(cardId)) {
+                        if (cardId != null && cardManager.exists(cardId)) {
                             CardData card = cardManager.getCard(cardId);
                             if (card != null) {
                                 completions.add(String.valueOf(card.getBalance()));

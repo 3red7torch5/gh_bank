@@ -66,4 +66,6 @@ public class CardData {
     int getColorAsRGB() {
         return cardColor.asRGB();
     }
+
+    String getOwnerUuid() {return ownerUuid;}
 }
