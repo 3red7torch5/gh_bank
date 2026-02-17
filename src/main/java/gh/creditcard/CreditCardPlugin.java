@@ -10,11 +10,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.CustomModelDataComponent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -80,7 +82,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                     event.getPlayer().sendActionBar(colorize("&7Баланс: &b" + String.valueOf( // Пробелы для читаемости
                             String.valueOf(cardManager.getCard(cardId).getBalance()).replaceAll("(\\d)(?=(\\d{3})+$)", "$1 ")) + " АЛМ"));
                 }
-                event.setCancelled(true);
+                //event.setCancelled(true);
             }
         }, this);
     }
@@ -768,7 +770,6 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         }
                     }
                 }
-                commandRunSkinPreview(player);
                 return true;
             }
 
@@ -810,12 +811,9 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 player.sendMessage(getMessage("no-card-in-hand"));
                 return true;
             }
-            if (!cardManager.isOwner(player,cardId)) {
+            if (config.getBoolean("skin-card-owner-check") && !cardManager.isOwner(player,cardId)) {
                 player.sendMessage(getMessage("not-yours"));
-                player.sendMessage(cardId);
-                player.sendMessage(cardManager.isOwner(player,cardId) ? "true" : "false");
-                player.sendMessage(player.getUniqueId());
-                //return true;
+                return true;
             }
 
             try {
@@ -842,6 +840,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             String skinName = config.getString("skin-names." + skinId);
             if (skinName != null) {
                 meta.setDisplayName(skinName.replace('&', '§'));
+                meta.setCustomModelData(Integer.valueOf(skinId));
             }
 
             hand.setItemMeta(meta);
@@ -953,6 +952,7 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                         String skinName = config.getString("skin-names." + skinId);
                         meta.setCustomModelData(skinIdInt);
                         meta.setDisplayName(skinName.replace('&', '§'));
+                        meta.setCustomModelData(Integer.valueOf(skinId));
                         currentHand.setItemMeta(meta);
                         String progressText = colorize("Промотка #" + skinId +
                                 " " + skinNumber + "/" + totalSkins);

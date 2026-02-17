@@ -73,6 +73,7 @@ public class CardManager {
         LeatherArmorMeta meta = (LeatherArmorMeta) card.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(cardName.replace('&', '§'));
+            meta.setCustomModelData(Integer.valueOf(1000));
             meta.setColor(cardData.getCardColor());
             meta.addItemFlags(
                     org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES,
