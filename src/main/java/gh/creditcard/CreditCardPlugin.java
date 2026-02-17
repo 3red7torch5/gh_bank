@@ -728,6 +728,9 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
         if (subAction.equals("прогнать")) {
             return commandRunSkinPreview(player);
         }
+        if (subAction.equals("дисплей")) {
+            return commandDisplay(player);
+        }
 
         if (args.length < 3) {
             player.sendMessage(getMessage("usage-skins"));
@@ -850,6 +853,61 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
 
         player.sendMessage(getMessage("usage-skins"));
         return true;
+    }
+
+    private boolean commandDisplay(Player player) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+        if (skinNamesSection == null || skinNamesSection.getKeys(false).isEmpty()) {
+            player.sendMessage(colorize("&cВ конфигурации не найдено скинов!"));
+            return true;
+        }
+        List<String> allSkins = new ArrayList<>(skinNamesSection.getKeys(false));
+        allSkins.sort((s1, s2) -> {
+            try {
+                return Integer.compare(Integer.parseInt(s1), Integer.parseInt(s2));
+            } catch (NumberFormatException e) {
+                return s1.compareTo(s2);
+            }
+        });
+        final int totalSkins = allSkins.size();
+        for (int i = 0; i < totalSkins; i++) {
+            final int skinNumber = i + 1;
+            final Integer skinId = Integer.valueOf(allSkins.get(i));
+            if (player == null || !player.isOnline()) {
+                return true;
+            }
+            ItemStack currentHand = player.getInventory().getItemInMainHand();
+            String currentCardId = getIdFromItem(currentHand);
+            try {
+                String skinName = config.getString("skin-names." + skinId);
+                double angle = (2 * Math.PI / totalSkins) * i;
+                Location location = new Location(player.getWorld(),Math.cos(angle)*2,i*0.2,Math.sin(angle)*2);
+                spawnSkinPreviewDisplay(skinId,player.getEyeLocation().add(location).setDirection(player.getLocation().subtract(location).toVector()));
+            } catch (NumberFormatException e) {
+                player.sendMessage(colorize("&cОшибка в формате ID скина: " + skinId));
+            }
+        }
+        return true;
+    }
+
+    private void spawnSkinPreviewDisplay(Integer skinId, Location location) {
+        try {
+            ItemStack displayItem = new ItemStack(Material.LEATHER_HORSE_ARMOR);
+            ItemMeta meta = displayItem.getItemMeta();
+            if (meta == null) {
+                return;
+            }
+            meta.setCustomModelData(skinId);
+            displayItem.setItemMeta(meta);
+
+            location.getWorld().spawn(location, org.bukkit.entity.ItemDisplay.class, display -> {
+                display.setItemStack(displayItem);
+            });
+
+        } catch (NumberFormatException e) {
+            getLogger().warning("Invalid skin ID format: " + skinId);
+        }
     }
 
     private void updateCardItem(ItemStack cardItem, String cardId) {
@@ -983,144 +1041,203 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
-        List<String> completions = new ArrayList<>();
         try {
             if (args.length == 1) {
-                List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести", "скин"));
-                if (sender.hasPermission("creditcard.reload")) {
-                    subCommands.add("reload");
-                }
-                if (sender.hasPermission("creditcard.forge")) {
-                    subCommands.add("подделать");
-                }
-                if (sender.hasPermission("creditcard.fabricate")) {
-                    subCommands.add("сфабриковать");
-                }
-                String input = args[0].toLowerCase();
-                for (String subCommand : subCommands) {
-                    if (subCommand.toLowerCase().startsWith(input)) {
-                        completions.add(subCommand);
-                    }
-                }
+                return completeFirstArgument(sender, args[0]);
             } else if (args.length == 2) {
-                String subCommand = args[0].toLowerCase();
-                if (subCommand.equals("перевести") || subCommand.equals("подделать") || subCommand.equals("сфабриковать")) {
-                    completions.add("XXXX-XXXX");
-                } else if (subCommand.equals("пополнить") || subCommand.equals("снять")) {
-                    if (sender instanceof Player) {
-                        Player player = (Player) sender;
-                        ItemStack hand = player.getInventory().getItemInMainHand();
-                        if (cardManager.getAllCards() == null) {
-                            return completions;
-                        }
-                        String cardId = getIdFromItem(hand);
-                        if (cardId != null && cardManager.exists(cardId)) {
-                            CardData card = cardManager.getCard(cardId);
-                            if (card != null) {
-                                if (subCommand.equals("пополнить")) {
-                                    completions.add(String.valueOf(countPlayerCurrency(player)));
-                                } else if (subCommand.equals("снять")) {
-                                    completions.add(String.valueOf(card.getBalance()));
-                                    if (card.getBalance() >= countPlayerAir(player)*64) {
-                                        completions.add(String.valueOf(countPlayerAir(player)*64));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (subCommand.equals("скин")) {
-                    List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить"));
-                    if (sender.hasPermission("creditcard.skinmanagement")){
-                        skinfunctions.add("добавить");
-                        skinfunctions.add("забрать");
-                        skinfunctions.add("прогнать");
-                    }
-                    String input = args[1].toLowerCase();
-                    for (String completion : skinfunctions) {
-                        if (completion.toLowerCase().startsWith(input)) {
-                            completions.add(completion);
-                        }
-                    }
-                }
+                return completeSecondArgument(sender, args);
             } else if (args.length == 3) {
-                String subCommand = args[0].toLowerCase();
-                if (subCommand.equals("перевести")) {
-                    if (sender instanceof Player) {
-                        Player player = (Player) sender;
-                        ItemStack hand = player.getInventory().getItemInMainHand();
-                        if (cardManager.getAllCards() == null) {
-                            return completions;
-                        }
-                        String cardId = getIdFromItem(hand);
-                        if (cardId != null && cardManager.exists(cardId)) {
-                            CardData card = cardManager.getCard(cardId);
-                            if (card != null) {
-                                completions.add(String.valueOf(card.getBalance()));
-                            }
-                        }
-                    }
-                } else if (subCommand.equals("скин")) {
-                    if (args.length == 2) {
-                        List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "добавить", "забрать", "список"));
-                        if (sender.hasPermission("creditcard.skinmanagement")) {
-                            skinfunctions.add("добавить");
-                            skinfunctions.add("забрать");
-                        }
-                        String input = args[1].toLowerCase();
-                        for (String completion : skinfunctions) {
-                            if (completion.toLowerCase().startsWith(input)) {
-                                completions.add(completion);
-                            }
-                        }
-                    } else if (args.length == 3) {
-                        String action = args[1].toLowerCase();
-                        Player player = (Player) sender;
-                        if (action.equals("поставить")) {
-                            List<String> availableSkins = getAvailableSkins(player);
-                            String input = args[2].toLowerCase();
-                            for (String skinId : availableSkins) {
-                                if (skinId.toLowerCase().startsWith(input)) {
-                                    completions.add(skinId);
-                                }
-                            }
-                        } else if (action.equals("добавить") && sender.hasPermission("creditcard.skinmanagement")) {
-                            List<String> playerSkins = getAvailableSkins(player);
-                            ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
-                            if (skinNamesSection != null) {
-                                String input = args[2].toLowerCase();
-                                for (String skinId : skinNamesSection.getKeys(false)) {
-                                    if (!playerSkins.contains(skinId)) {
-                                        if (skinId.toLowerCase().startsWith(input)) {
-                                            completions.add(skinId);
-                                        }
-                                    }
-                                }
-                            }
-                        } else if (action.equals("забрать") && sender.hasPermission("creditcard.skinmanagement")) {
-                            List<String> playerSkins = getAvailableSkins(player);
-                            String input = args[2].toLowerCase();
-                            for (String skinId : playerSkins) {
-                                if (skinId.toLowerCase().startsWith(input)) {
-                                    completions.add(skinId);
-                                }
-                            }
-                        }
-                    }
-                }
+                return completeThirdArgument(sender, args);
             } else if (args.length == 4) {
-                String subCommand = args[0].toLowerCase();
-                String current = args[3].toLowerCase();
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (p.getName().toLowerCase().startsWith(current)) {
-                        completions.add(p.getName());
-                    }
-                }
+                return completeFourthArgument(sender, args);
+            } else if (args.length == 5) {
+                return completeFifthArgument(sender, args);
             }
         } catch (Exception e) {
             getLogger().log(java.util.logging.Level.WARNING, "Error during tab completion for command '/карта'", e);
+        }
+        return Collections.emptyList();
+    }
+
+    private List<String> completeFirstArgument(CommandSender sender, String input) {
+        List<String> subCommands = new ArrayList<>(Arrays.asList("создать", "баланс", "пополнить", "снять", "перевести", "скин"));
+
+        if (sender.hasPermission("creditcard.reload")) {
+            subCommands.add("reload");
+        }
+        if (sender.hasPermission("creditcard.forge")) {
+            subCommands.add("подделать");
+        }
+        if (sender.hasPermission("creditcard.fabricate")) {
+            subCommands.add("сфабриковать");
+        }
+
+        return filterByInput(subCommands, input);
+    }
+
+    private List<String> completeSecondArgument(CommandSender sender, String[] args) {
+        String subCommand = args[0].toLowerCase();
+        String input = args[1].toLowerCase();
+
+        if (subCommand.equals("перевести") || subCommand.equals("подделать") || subCommand.equals("сфабриковать")) {
+            return Collections.singletonList("XXXX-XXXX");
+        }
+
+        if (subCommand.equals("пополнить") || subCommand.equals("снять")) {
+            return completeBalanceOperation(sender, subCommand, input);
+        }
+
+        if (subCommand.equals("скин")) {
+            List<String> skinfunctions = new ArrayList<>(Arrays.asList("поставить", "дисплей"));
+
+            if (sender.hasPermission("creditcard.skinmanagement")) {
+                skinfunctions.addAll(Arrays.asList("добавить", "забрать", "прогнать"));
+            }
+
+            return filterByInput(skinfunctions, input);
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<String> completeThirdArgument(CommandSender sender, String[] args) {
+        String subCommand = args[0].toLowerCase();
+
+        if (subCommand.equals("перевести") && sender instanceof Player) {
+            return completeTransferAmount((Player) sender);
+        }
+
+        if (subCommand.equals("скин") && sender instanceof Player) {
+            String action = args[1].toLowerCase();
+
+            if (action.equals("поставить")) {
+                return filterByInput(getAvailableSkins((Player) sender), args[2].toLowerCase());
+            }
+
+            if (action.equals("дисплей")) {
+                List<String> displayOptions = Arrays.asList("список", "инфо");
+                return filterByInput(displayOptions, args[2].toLowerCase());
+            }
+
+            if (action.equals("добавить") && sender.hasPermission("creditcard.skinmanagement")) {
+                return completeAvailableSkinsToAdd((Player) sender, args[2].toLowerCase());
+            }
+
+            if (action.equals("забрать") && sender.hasPermission("creditcard.skinmanagement")) {
+                return filterByInput(getAvailableSkins((Player) sender), args[2].toLowerCase());
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<String> completeFourthArgument(CommandSender sender, String[] args) {
+        String subCommand = args[0].toLowerCase();
+
+        if (subCommand.equals("скин") && args[1].toLowerCase().equals("дисплей") && sender instanceof Player) {
+            String displayAction = args[2].toLowerCase();
+            String input = args[3].toLowerCase();
+
+            if (displayAction.equals("инфо")) {
+                return filterByInput(getAvailableSkins((Player) sender), input);
+            }
+        }
+
+        return completePlayerNames(args[3]);
+    }
+
+    private List<String> completeFifthArgument(CommandSender sender, String[] args) {
+        return completePlayerNames(args[4]);
+    }
+
+    private List<String> completeBalanceOperation(CommandSender sender, String operation, String input) {
+        if (!(sender instanceof Player)) {
             return Collections.emptyList();
         }
-        return completions;
+
+        Player player = (Player) sender;
+        ItemStack hand = player.getInventory().getItemInMainHand();
+
+        if (cardManager.getAllCards() == null) {
+            return Collections.emptyList();
+        }
+
+        String cardId = getIdFromItem(hand);
+        if (cardId == null || !cardManager.exists(cardId)) {
+            return Collections.emptyList();
+        }
+
+        CardData card = cardManager.getCard(cardId);
+        if (card == null) {
+            return Collections.emptyList();
+        }
+
+        List<String> suggestions = new ArrayList<>();
+
+        if (operation.equals("пополнить")) {
+            suggestions.add(String.valueOf(countPlayerCurrency(player)));
+        } else if (operation.equals("снять")) {
+            suggestions.add(String.valueOf(card.getBalance()));
+            int maxWithdraw = countPlayerAir(player) * 64;
+            if (card.getBalance() >= maxWithdraw) {
+                suggestions.add(String.valueOf(maxWithdraw));
+            }
+        }
+
+        return filterByInput(suggestions, input);
+    }
+
+    private List<String> completeTransferAmount(Player player) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+
+        if (cardManager.getAllCards() == null) {
+            return Collections.emptyList();
+        }
+
+        String cardId = getIdFromItem(hand);
+        if (cardId != null && cardManager.exists(cardId)) {
+            CardData card = cardManager.getCard(cardId);
+            if (card != null) {
+                return Collections.singletonList(String.valueOf(card.getBalance()));
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<String> completeAvailableSkinsToAdd(Player player, String input) {
+        List<String> playerSkins = getAvailableSkins(player);
+        ConfigurationSection skinNamesSection = config.getConfigurationSection("skin-names");
+
+        if (skinNamesSection != null) {
+            List<String> availableToAdd = new ArrayList<>();
+            for (String skinId : skinNamesSection.getKeys(false)) {
+                if (!playerSkins.contains(skinId)) {
+                    availableToAdd.add(skinId);
+                }
+            }
+            return filterByInput(availableToAdd, input);
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<String> completePlayerNames(String input) {
+        List<String> playerNames = new ArrayList<>();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            playerNames.add(p.getName());
+        }
+        return filterByInput(playerNames, input);
+    }
+
+    private List<String> filterByInput(List<String> suggestions, String input) {
+        List<String> filtered = new ArrayList<>();
+        for (String suggestion : suggestions) {
+            if (suggestion.toLowerCase().startsWith(input)) {
+                filtered.add(suggestion);
+            }
+        }
+        return filtered;
     }
 
     public NamespacedKey getCardIdKey() {
