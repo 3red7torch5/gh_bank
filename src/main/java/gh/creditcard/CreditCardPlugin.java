@@ -812,7 +812,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
             }
             if (!cardManager.isOwner(player,cardId)) {
                 player.sendMessage(getMessage("not-yours"));
-                return true;
+                player.sendMessage(cardId);
+                player.sendMessage(cardManager.isOwner(player,cardId) ? "true" : "false");
+                player.sendMessage(player.getUniqueId());
+                //return true;
             }
 
             try {
