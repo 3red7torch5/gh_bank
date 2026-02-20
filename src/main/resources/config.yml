@@ -17,27 +17,27 @@ currency:
       - "&9%balance% АЛМ"
 cooldown:
   hours: 72 #часов
-  message: "&cПодождите ещё %hours%ч %minutes%м перед созданием&7."
+  message: "&cПодождите ещё %hours%ч. %minutes%м. перед созданием&7."
   bypass-permission: "creditcard.cooldown.bypass"
 
 messages:
-  prefix: "&8[&6&lГХ&8] "
+  prefix: "&8[&9&lГХ&8] "
 
   card-created: "&7Карта успешно создана! &fID: &a%card_id%&7."
   deposit-success: "&7Внесено &b%amount% АЛМ&7. Баланс: &a%balance% АЛМ&7."
   withdraw-success: "&7Списано &b%amount% АЛМ&7. Баланс: &a%balance% АЛМ&7."
-  balance-show: "&7Баланс: &b%balance% АЛМ."
-  transfer-success: "&7Переведено %amount% деняк на карту %target_card% (%target_owner%). Баланс: %balance%"
-  skins-show: "Твои скины лол: %skins%"
-  invalid-skinid: "Неверный айди скина"
-  does-not-belong: "Такого не имеется"
-  skin-already-has: "Уже имеется такой скин"
-  skin-add-success: "Добавлен скин аэыэаэы"
-  skin-remove-success: "Забран скин аэыэаэы"
-  not-yours: "Э сука это не твоя карта"
+  balance-show: "&7Баланс: &b%balance% АЛМ&7."
+  transfer-success: "&7Переведено &b%amount% АЛМ&7 на карту &a%target_card% &7(%target_owner%). Баланс: &a%balance% АЛМ&7."
+  skins-show: "&7Доступные скины: &d%skins%&7."
+  invalid-skinid: "&7Неверный айди скина."
+  does-not-belong: "&7Такого скина не существует."
+  skin-already-has: "&7У вас уже есть этот скин."
+  skin-add-success: "&aДобавлен скин."
+  skin-remove-success: "&cЗабран скин."
+  not-yours: "&7Вы не являетесь владельцем этой карты."
 
-  no-card-in-hand: "&cВозьмите карту в руку"
-  invalid-card: "&cОшибка при обработке карты"
+  no-card-in-hand: "&cВозьмите карту в руку."
+  invalid-card: "&cОшибка при обработке карты."
   insufficient-funds: "&7Недостаточно средств! Баланс: &a%balance% АЛМ&7."
   not-enough-items: "&7Требуется ещё &b%needed% АЛМ&7!"
   invalid-amount: "&cНеверное значение."
@@ -49,7 +49,7 @@ messages:
   usage-forge: "&7Использование: &f/карта подделать <номер>"
   cards-created-multiple: "&7Создано &a%card_count% &7карт."
   usage-transfer: "&7Использование: &f/карта перевести <номер карты> <сумма>"
-  usage-skins: "Аэ блять /карта скин <айдиопционально>"
+  usage-skins: "&7Использование: &f/карта скин <айди>"
 
   already-exists: "&7Карта с таким номером уже существует."
   numbers-only: "&7Разрешено использовать только цифры."
@@ -60,8 +60,8 @@ messages:
   cooldown-active: "&7Подождите ещё %cooldown%."
 
   target-card-not-found: "&7Карта %target_card% не найдена"
-  cannot-transfer-to-self: "&7Еблан ваще?"
-  transfer-received: "&7С карты %sender_name% тебе жоска перевели %amount% деняк на карту %target_card%"
+  cannot-transfer-to-self: "&7Нельзя перевести самому себе."
+  transfer-received: "&7Вам перевели &b%amount% АЛМ&7 с карты &a%sender_name%&7 на карту &a%target_card%."
 
   help-header: "&6&lКоманды"
   help-create: "&f/карта создать &7- Создать новую карту\n&e/карта создать <количество> &7- Создать несколько карт"
@@ -110,4 +110,4 @@ skin-names:
   1027: "&cБанковская карта \"Вулкан\""
   1028: "&bБанковская карта \"Зима\""
   1029: "&bБанковская карта \"Бесконечность\""
-  1030: "&rБанковская карта \"Ошибка\""
+  1030: "&dБанковская карта \"Ошибка\""
