@@ -16,6 +16,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -883,8 +884,10 @@ public class CreditCardPlugin extends JavaPlugin implements TabCompleter {
                 String skinName = config.getString("skin-names." + skinId);
                 double angle = (2 * Math.PI / totalSkins) * i;
                 Location playerEyes = player.getEyeLocation();
-                Location location = new Location(player.getWorld(),Math.cos(angle),0,Math.sin(angle));
-                spawnSkinPreviewDisplay(skinId,playerEyes.add(location).setDirection(playerEyes.subtract(location).toVector()));
+                Location location = playerEyes.clone().add(Math.cos(angle) * 1.5, 0, Math.sin(angle) * 1.5);
+                Vector direction = playerEyes.toVector().subtract(location.toVector());
+                location.setDirection(direction);
+                spawnSkinPreviewDisplay(skinId, location);
             } catch (NumberFormatException e) {
                 player.sendMessage(colorize("&cОшибка в формате ID скина: " + skinId));
             }
